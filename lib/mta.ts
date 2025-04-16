@@ -216,8 +216,16 @@ export async function getSubwayArrivals(stationId: string, direction: "N" | "S",
               if (stopId === expectedStopId) {
                 matchCount++;
                 if (update.arrival && update.arrival.time) {
-                  const arrivalTime = new Date(update.arrival.time.low * 1000)
-                  const minutesAway = Math.floor((update.arrival.time.low - now) / 60)
+                  const arrivalTimestamp = update.arrival.time.low || update.arrival.time
+                  const arrivalTime = new Date(arrivalTimestamp * 1000)
+                  
+                  // Ensure we have valid timestamps before calculating minutes away
+                  if (isNaN(arrivalTimestamp) || arrivalTimestamp <= 0) {
+                    console.log(`Invalid arrival time for line ${routeId}: ${arrivalTimestamp}`)
+                    continue
+                  }
+                  
+                  const minutesAway = Math.floor((arrivalTimestamp - now) / 60)
                   
                   // Only include future arrivals within the next hour
                   if (minutesAway > 0 && minutesAway <= 60) {
@@ -295,8 +303,16 @@ export async function getDestinationTimes(tripId: string, line: string): Promise
         if (entity.tripUpdate.stopTimeUpdate) {
           for (const update of entity.tripUpdate.stopTimeUpdate) {
             if (update.arrival && update.arrival.time) {
-              const arrivalTime = new Date(update.arrival.time.low * 1000)
-              const minutesAway = Math.floor((update.arrival.time.low - now) / 60)
+              const arrivalTimestamp = update.arrival.time.low || update.arrival.time
+              const arrivalTime = new Date(arrivalTimestamp * 1000)
+              
+              // Ensure we have valid timestamps before calculating minutes away
+              if (isNaN(arrivalTimestamp) || arrivalTimestamp <= 0) {
+                console.log(`Invalid arrival time for line ${line}: ${arrivalTimestamp}`)
+                continue
+              }
+              
+              const minutesAway = Math.floor((arrivalTimestamp - now) / 60)
               
               // Only include future arrivals
               if (minutesAway > 0) {
