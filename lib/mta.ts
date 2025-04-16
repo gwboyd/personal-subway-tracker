@@ -70,7 +70,7 @@ const LINE_TO_FEED: Record<string, string> = {
 }
 
 // Function to get the feed URL for a line, with fallback for numeric codes
-function getFeedUrlForLine(line: string): string | undefined {
+export function getFeedUrlForLine(line: string): string | undefined {
   // If the line is directly mapped, return that feed URL
   if (LINE_TO_FEED[line]) {
     return LINE_TO_FEED[line];
@@ -98,19 +98,25 @@ function getFeedUrlForLine(line: string): string | undefined {
   return undefined;
 }
 
-async function fetchFeed(url: string): Promise<any> {
+export async function fetchFeed(url: string): Promise<any> {
   try {
     console.log("Fetching MTA feed from:", url);
     // Include MTA API key if provided in environment
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = {
+      'Accept': 'application/x-protobuf',
+      'User-Agent': 'personal-subway-tracker/1.0.0'
+    }
     if (process.env.MTA_API_KEY) {
       headers['x-api-key'] = process.env.MTA_API_KEY
     }
+    
+    console.log("Fetch request starting with headers:", JSON.stringify(headers));
     const response = await fetch(url, {
       next: { revalidate: 30 }, // Revalidate every 30 seconds
       headers,
     })
 
+    console.log("Fetch response status:", response.status, response.statusText);
     if (!response.ok) {
       throw new Error(`Failed to fetch MTA data: ${response.status} ${response.statusText}`)
     }
