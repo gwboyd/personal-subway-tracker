@@ -10,11 +10,12 @@ import { debugStationData } from "@/lib/debug-stations"
 
 interface LoginFlowProps {
   onComplete: () => void
+  onGuestMode: () => void
 }
 
 type Step = "phone" | "name" | "stations"
 
-export default function LoginFlow({ onComplete }: LoginFlowProps) {
+export default function LoginFlow({ onComplete, onGuestMode }: LoginFlowProps) {
   const [step, setStep] = useState<Step>("phone")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [userId, setUserId] = useState("")
@@ -90,7 +91,13 @@ export default function LoginFlow({ onComplete }: LoginFlowProps) {
         <CardDescription>{getStepDescription()}</CardDescription>
       </CardHeader>
       <CardContent>
-        {step === "phone" && <PhoneInput onExistingUser={handleExistingUser} onNewUser={handleNewUser} />}
+        {step === "phone" && (
+          <PhoneInput 
+            onExistingUser={handleExistingUser} 
+            onNewUser={handleNewUser} 
+            onGuestMode={onGuestMode}
+          />
+        )}
 
         {step === "name" && (
           <NameInput phoneNumber={phoneNumber} onComplete={handleNameComplete} onBack={() => setStep("phone")} />

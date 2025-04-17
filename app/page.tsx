@@ -14,6 +14,7 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [userStations, setUserStations] = useState<string[]>([])
+  const [isGuestMode, setIsGuestMode] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -35,6 +36,14 @@ export default function Home() {
 
   const handleLoginComplete = () => {
     window.location.reload() // Reload to get updated user data
+  }
+
+  const handleGuestMode = () => {
+    setIsGuestMode(true)
+  }
+
+  const handleExitGuestMode = () => {
+    setIsGuestMode(false)
   }
 
   const navigateToSettings = () => {
@@ -68,12 +77,19 @@ export default function Home() {
         <p className="text-center text-gray-600">Track your trains in real-time</p>
       </header>
 
-      {isLoggedIn ? (
+      {isLoggedIn || isGuestMode ? (
         <Suspense fallback={<SubwayLoading />}>
-          <StationSelector userStations={userStations} />
+          <StationSelector 
+            userStations={userStations} 
+            isGuestMode={isGuestMode}
+            onExitGuestMode={handleExitGuestMode}
+          />
         </Suspense>
       ) : (
-        <LoginFlow onComplete={handleLoginComplete} />
+        <LoginFlow 
+          onComplete={handleLoginComplete} 
+          onGuestMode={handleGuestMode}
+        />
       )}
     </main>
   )

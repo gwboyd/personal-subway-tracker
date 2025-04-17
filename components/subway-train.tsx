@@ -52,7 +52,7 @@ export default function SubwayTrain({ arrival, onStationSelect }: SubwayTrainPro
         <Button variant="outline" className="w-full justify-between p-4 h-auto" onClick={handleShowDestinations}>
           <div className="flex items-center flex-grow min-w-0 mr-3">
             <div
-              className={`flex-shrink-0 w-8 h-8 rounded-full ${bgColor} ${textColor} flex items-center justify-center font-bold mr-3`}
+              className={`flex-shrink-0 w-8 h-8 rounded-full ${bgColor} flex items-center justify-center font-bold mr-3`}
             >
               {arrival.line}
             </div>
@@ -77,7 +77,7 @@ export default function SubwayTrain({ arrival, onStationSelect }: SubwayTrainPro
           <DialogTitle>
             <div className="flex items-center">
               <div
-                className={`flex-shrink-0 w-8 h-8 rounded-full ${bgColor} ${textColor} flex items-center justify-center font-bold mr-2`}
+                className={`flex-shrink-0 w-8 h-8 rounded-full ${bgColor} flex items-center justify-center font-bold mr-2`}
               >
                 {arrival.line}
               </div>
@@ -150,37 +150,37 @@ function getLineColor(line: string): string {
     case "A":
     case "C":
     case "E":
-      return "bg-blue-600" // Blue
+      return "bg-blue-600 text-white" // Blue
     case "B":
     case "D":
     case "F":
     case "M":
-      return "bg-orange-500" // Orange
+      return "bg-orange-500 text-white" // Orange
     case "G":
-      return "bg-green-500" // Light Green
+      return "bg-green-500 text-white" // Light Green
     case "J":
     case "Z":
-      return "bg-amber-800" // Brown
+      return "bg-amber-800 text-white" // Brown
     case "L":
-      return "bg-gray-600" // Gray
+      return "bg-gray-600 text-white" // Gray
     case "N":
     case "Q":
     case "R":
     case "W":
-      return "bg-yellow-500" // Yellow
+      return "!bg-[#f9c506] !text-black" // Yellow with black text
     case "1":
     case "2":
     case "3":
-      return "bg-red-600" // Red
+      return "bg-red-600 text-white" // Red
     case "4":
     case "5":
     case "6":
-      return "bg-green-600" // Green
+      return "bg-green-600 text-white" // Green
     case "7":
-      return "bg-purple-600" // Purple
+      return "bg-purple-600 text-white" // Purple
     case "S":
-      return "bg-gray-500" // Gray
+      return "bg-gray-500 text-white" // Gray
     default:
-      return "bg-gray-600"
+      return "bg-gray-600 text-white"
   }
 }

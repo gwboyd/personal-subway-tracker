@@ -88,7 +88,8 @@ function getBackgroundColor(color: string): string {
     case "#ff5d0d":
       return "bg-orange-500"
     case "yellow":
-      return "bg-yellow-500"
+    case "#f9c506":
+      return ""  // Use inline style for consistent yellow
     case "green":
       return "bg-green-600"
     case "purple":
@@ -105,6 +106,7 @@ function getBackgroundColor(color: string): string {
 function getTextColor(color: string): string {
   switch (color) {
     case "yellow":
+    case "#f9c506":
       return "text-black"
     default:
       return "text-white"

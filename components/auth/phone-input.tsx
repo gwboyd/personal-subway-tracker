@@ -11,9 +11,10 @@ import { getUserByPhone } from "@/lib/supabase"
 interface PhoneInputProps {
   onExistingUser: (phoneNumber: string, userId: string) => void
   onNewUser: (phoneNumber: string) => void
+  onGuestMode: () => void
 }
 
-export default function PhoneInput({ onExistingUser, onNewUser }: PhoneInputProps) {
+export default function PhoneInput({ onExistingUser, onNewUser, onGuestMode }: PhoneInputProps) {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -70,31 +71,54 @@ export default function PhoneInput({ onExistingUser, onNewUser }: PhoneInputProp
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="phone">Phone Number</Label>
-        <Input
-          id="phone"
-          type="tel"
-          placeholder="(555) 555-5555"
-          value={phoneNumber}
-          onChange={handlePhoneChange}
-          className="text-lg"
-          autoComplete="tel"
-        />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number</Label>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="(555) 555-5555"
+            value={phoneNumber}
+            onChange={handlePhoneChange}
+            className="text-lg"
+            autoComplete="tel"
+          />
+          {error && <p className="text-sm text-red-500">{error}</p>}
+        </div>
+
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "Checking..." : "Continue"}
+        </Button>
+
+        <p className="text-xs text-center text-gray-500">
+          We'll use your phone number to save your preferences.
+          <br />
+          No verification code will be sent.
+        </p>
+      </form>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Or</span>
+        </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Checking..." : "Continue"}
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={onGuestMode}
+        type="button"
+      >
+        Continue as Guest
       </Button>
 
-      <p className="text-xs text-center text-gray-500 mt-4">
-        We'll use your phone number to save your preferences.
-        <br />
-        No verification code will be sent.
+      <p className="text-xs text-center text-gray-500">
+        Guest mode lets you check train times, but you won't be able to save your favorite stations.
       </p>
-    </form>
+    </div>
   )
 }
-

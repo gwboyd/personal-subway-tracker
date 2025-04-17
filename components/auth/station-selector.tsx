@@ -10,6 +10,9 @@ import { Search } from "lucide-react"
 import { saveUserStations, saveUserToLocalStorage, getUserByPhone } from "@/lib/supabase"
 import stationData from "@/lib/station-data.json"
 
+// Import the getLineColor function from the main station selector
+import { getLineColor, shouldUseBlackText } from "@/components/station-selector"
+
 interface StationSelectorProps {
   userId: string
   phoneNumber: string
@@ -355,15 +358,30 @@ export default function StationSelector({
                       checked={selectedStations.includes(station.id)}
                       onCheckedChange={() => handleToggleStation(station.id)}
                     />
-                    <Label htmlFor={`station-${station.id}-${index}`} className="text-sm cursor-pointer">
-                      <span className="font-medium">{station.name}</span>
-                      {/* show typical trains in parentheses */}
+                    <div className="flex justify-between items-center w-full">
+                      <Label htmlFor={`station-${station.id}-${index}`} className="text-sm cursor-pointer">
+                        <span className="font-medium">{station.name}</span>
+                      </Label>
                       {station.routes && (
-                        <span className="text-gray-500 ml-1">
-                          ({station.routes.split(' ').join(', ')})
-                        </span>
+                        <div className="flex items-center gap-1 ml-2">
+                          {station.routes.split(' ').slice(0, 5).map((line) => (
+                            <span
+                              key={line}
+                              className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full"
+                              style={{
+                                backgroundColor: getLineColor(line),
+                                color: shouldUseBlackText(line) ? 'black' : 'white'
+                              }}
+                            >
+                              {line}
+                            </span>
+                          ))}
+                          {station.routes.split(' ').length > 5 && (
+                            <span className="text-xs text-gray-600">+{station.routes.split(' ').length - 5}</span>
+                          )}
+                        </div>
                       )}
-                    </Label>
+                    </div>
                   </div>
                 ))
               ) : (
