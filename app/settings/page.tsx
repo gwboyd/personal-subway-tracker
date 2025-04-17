@@ -53,17 +53,24 @@ export default function SettingsPage() {
 
   return (
     <div className="container max-w-md py-8">
-      {/* Back button to exit settings */}
-      <div className="mb-4">
-        <Button variant="outline" onClick={() => router.back()} className="w-full">
-          Back
-        </Button>
-      </div>
-      {/* Settings card */}
+      {/* Settings card with integrated back button */}
       <Card>
-        <CardHeader>
-          <CardTitle>Settings</CardTitle>
-          <CardDescription>Update your preferences</CardDescription>
+        <CardHeader className="relative pb-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => router.back()} 
+            className="absolute left-4 top-4 p-0 h-8 w-8 rounded-full"
+            aria-label="Back"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </Button>
+          <div className="text-center">
+            <CardTitle>Settings</CardTitle>
+            <CardDescription>Update your preferences</CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -95,4 +102,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-

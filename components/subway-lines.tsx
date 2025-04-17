@@ -68,12 +68,21 @@ export default function SubwayLines({ stationId, direction, lines, title }: Subw
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">{title}</h3>
-        <div className="text-center py-4">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]" role="status">
-            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-              Loading...
-            </span>
-          </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="w-full h-16 rounded-md border bg-background p-4 flex items-center justify-between animate-pulse">
+              <div className="flex items-center flex-grow min-w-0 mr-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted mr-3" />
+                <div className="min-w-0 flex-grow">
+                  <div className="h-4 w-16 bg-muted rounded-md mb-2" />
+                  <div className="h-3 w-24 bg-muted rounded-md" />
+                </div>
+              </div>
+              <div className="flex items-center flex-shrink-0">
+                <div className="h-4 w-14 bg-muted rounded-md" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -97,12 +106,21 @@ export default function SubwayLines({ stationId, direction, lines, title }: Subw
       </div>
 
       {refreshing ? (
-        <div className="text-center py-4">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em]" role="status">
-            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-              Refreshing...
-            </span>
-          </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="w-full h-16 rounded-md border bg-background p-4 flex items-center justify-between animate-pulse">
+              <div className="flex items-center flex-grow min-w-0 mr-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted mr-3" />
+                <div className="min-w-0 flex-grow">
+                  <div className="h-4 w-16 bg-muted rounded-md mb-2" />
+                  <div className="h-3 w-24 bg-muted rounded-md" />
+                </div>
+              </div>
+              <div className="flex items-center flex-shrink-0">
+                <div className="h-4 w-14 bg-muted rounded-md" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : arrivals.length > 0 ? (
         <div className="space-y-3">

@@ -191,6 +191,41 @@ export default function StationSelector({
               routes: getRoutesForStop(gtfsStopId),
             })
           }
+        } else {
+          // Check if query matches any of the train lines that serve this station
+          const routes = getRoutesForStop(gtfsStopId)
+          if (routes) {
+            // Extract individual train lines
+            const trainLines = routes.split(' ')
+            
+            // Search for individual lines or consecutive letter matches
+            const matchesTrainLine = trainLines.some(line => {
+              // Exact line match (e.g., "A" or "F")
+              if (line.toLowerCase() === query) return true
+              
+              // Multiple consecutive lines (e.g., "ace" matches A, C, E lines)
+              if (query.length > 1) {
+                return query.split('').every(letter => 
+                  trainLines.some(line => line.toLowerCase() === letter)
+                )
+              }
+              
+              return false
+            })
+            
+            if (matchesTrainLine) {
+              const key = gtfsStopId
+              if (!stationMap.has(key)) {
+                stationMap.set(key, true)
+                matchingStations.push({
+                  id: gtfsStopId,
+                  name: stopName,
+                  borough: borough || "",
+                  routes: routes,
+                })
+              }
+            }
+          }
         }
       })
 
@@ -274,7 +309,7 @@ export default function StationSelector({
               id="search"
               ref={searchInputRef}
               type="text"
-              placeholder="Search by station name"
+              placeholder="Search by station or line"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -365,4 +400,3 @@ export default function StationSelector({
     </form>
   )
 }
-

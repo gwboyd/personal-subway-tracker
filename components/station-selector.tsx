@@ -257,16 +257,20 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-4">
-              <div
-                className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                role="status"
-              >
-                <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-                  Loading...
-                </span>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-8 w-12 bg-muted animate-pulse rounded-full" />
+                ))}
               </div>
-              <p className="mt-2 text-sm text-gray-500">Loading available lines...</p>
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="h-6 w-6 bg-muted animate-pulse rounded-full" />
+                    <div className="h-4 w-full max-w-[250px] bg-muted animate-pulse rounded-md" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <>

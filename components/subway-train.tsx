@@ -88,8 +88,21 @@ export default function SubwayTrain({ arrival }: SubwayTrainProps) {
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           {loading ? (
-            <div className="py-8 text-center">
-              <p>Loading destinations...</p>
+            <div className="relative py-4">
+              <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-gray-300"></div>
+              {[1, 2, 3, 4, 5].map((index) => (
+                <div key={index} className="flex items-start mb-4 relative pl-10 animate-pulse">
+                  <div className="absolute left-3 w-3 h-3 rounded-full bg-muted -ml-1.5 mt-2"></div>
+                  <div className="flex-1">
+                    <div className="h-4 w-32 bg-muted rounded-md mb-2"></div>
+                    <div className="flex items-center">
+                      <div className="h-3 w-20 bg-muted rounded-md"></div>
+                      <div className="mx-1 h-3 w-3 bg-muted rounded-full"></div>
+                      <div className="h-3 w-12 bg-muted rounded-md"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="relative">

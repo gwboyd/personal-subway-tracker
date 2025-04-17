@@ -73,7 +73,7 @@ export default function LoginFlow({ onComplete }: LoginFlowProps) {
   const getStepDescription = () => {
     switch (step) {
       case "phone":
-        return "Enter your phone number to get started"
+        return "Enter your phone number to begin picking your stations"
       case "name":
         return "Please enter your first and last name"
       case "stations":
@@ -109,4 +109,3 @@ export default function LoginFlow({ onComplete }: LoginFlowProps) {
     </Card>
   )
 }
-

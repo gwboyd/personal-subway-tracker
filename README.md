@@ -1,6 +1,7 @@
  # Subway Tracker (NYC Subway ETAs)
 
  A real-time subway arrival tracker for New York City built with Next.js, React, and Supabase.
+ Deployed with Vercel: https://personal-subway-tracker.vercel.app
 
  ## Table of Contents
  - [Features](#features)

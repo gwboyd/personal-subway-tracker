@@ -54,12 +54,16 @@ export default function LineToggle({ line, color, enabled, onToggle }: LineToggl
   // Get the display line name from the map, or use the original if not found
   const displayLine = lineCodeMap[line] || line
 
+  // Use inline style for hex colors
+  const style = color.startsWith('#') && enabled ? { backgroundColor: color } : {}
+
   return (
     <div className="flex items-center space-x-2">
       <div
         className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
           enabled ? bgColor : "bg-gray-200"
         } ${enabled ? textColor : "text-gray-500"}`}
+        style={style}
       >
         {displayLine}
       </div>
@@ -69,16 +73,19 @@ export default function LineToggle({ line, color, enabled, onToggle }: LineToggl
 }
 
 function getBackgroundColor(color: string): string {
-  // Handle custom hex colors (Tailwind JIT)
+  // Handle custom hex colors using style attribute instead of className
   if (color.startsWith('#')) {
-    return `bg-[${color}]`
+    // Return empty string as we'll use inline style instead
+    return ''
   }
+  
   switch (color) {
     case "blue":
       return "bg-blue-600"
     case "red":
       return "bg-red-600"
     case "orange":
+    case "#ff5d0d":
       return "bg-orange-500"
     case "yellow":
       return "bg-yellow-500"
