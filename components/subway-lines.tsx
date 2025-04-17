@@ -11,9 +11,10 @@ interface SubwayLinesProps {
   direction: "N" | "S"
   lines: string[]
   title: string
+  onStationSelect?: (stationId: string, stationName: string) => void
 }
 
-export default function SubwayLines({ stationId, direction, lines, title }: SubwayLinesProps) {
+export default function SubwayLines({ stationId, direction, lines, title, onStationSelect }: SubwayLinesProps) {
   const [arrivals, setArrivals] = useState<Arrival[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -125,7 +126,11 @@ export default function SubwayLines({ stationId, direction, lines, title }: Subw
       ) : arrivals.length > 0 ? (
         <div className="space-y-3">
           {arrivals.map((arrival) => (
-            <SubwayTrain key={arrival.id} arrival={arrival} />
+            <SubwayTrain 
+              key={arrival.id} 
+              arrival={arrival} 
+              onStationSelect={onStationSelect}
+            />
           ))}
         </div>
       ) : (

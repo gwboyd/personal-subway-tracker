@@ -215,40 +215,41 @@ export async function getSubwayArrivals(stationId: string, direction: "N" | "S",
               
               if (stopId === expectedStopId) {
                 matchCount++;
+                // Use arrival time or fallback to departure time for the station
+                let timeSec: number | undefined
+                let delaySec: number | undefined
                 if (update.arrival && update.arrival.time) {
-                  const arrivalTimestamp = update.arrival.time.low || update.arrival.time
-                  const arrivalTime = new Date(arrivalTimestamp * 1000)
-                  
-                  // Ensure we have valid timestamps before calculating minutes away
-                  if (isNaN(arrivalTimestamp) || arrivalTimestamp <= 0) {
-                    console.log(`Invalid arrival time for line ${routeId}: ${arrivalTimestamp}`)
-                    continue
-                  }
-                  
-                  const minutesAway = Math.floor((arrivalTimestamp - now) / 60)
-                  
-                  // Only include future arrivals within the next hour
-                  if (minutesAway > 0 && minutesAway <= 60) {
-                    // Get the destination from the last stop or fall back to tripHeadsign
-                    const destination = lastStopId ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown' : trip.tripHeadsign || 'Unknown';
-                    
-                    console.log(`Found arrival: Line ${routeId}, ${minutesAway} minutes away, destination: ${destination}`);
-                    
-                    arrivals.push({
-                      id: `${trip.tripId}-${stationId}`,
-                      line: routeId,
-                      time: arrivalTime,
-                      minutesAway,
-                      delayed: update.arrival.delay ? update.arrival.delay > 300 : false, // Delayed if > 5 minutes
-                      destination: destination,
-                      tripId: trip.tripId,
-                      stationName: getStationName(stationId), // Add the station name using our utility function
-                    })
-                  } else {
-                    console.log(`Skipping arrival: Line ${routeId}, ${minutesAway} minutes away (outside 1-60 minute window)`);
-                  }
+                  timeSec = update.arrival.time.low ?? update.arrival.time
+                  delaySec = update.arrival.delay
+                } else if (update.departure && update.departure.time) {
+                  timeSec = update.departure.time.low ?? update.departure.time
+                  delaySec = update.departure.delay
+                }
+                // Validate timestamp
+                if (timeSec == null || isNaN(timeSec) || timeSec <= 0) {
+                  console.log(`No valid arrival/departure time for line ${routeId}: ${timeSec}`)
+                  break
+                }
+                const minutesAway = Math.floor((timeSec - now) / 60)
+                // Include trains 0–60 minutes away
+                if (minutesAway >= 0 && minutesAway <= 60) {
+                  const arrivalTime = new Date(timeSec * 1000)
+                  const destination = lastStopId
+                    ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown'
+                    : trip.tripHeadsign || 'Unknown'
+                  console.log(`Found arrival: Line ${routeId}, ${minutesAway} minutes away, destination: ${destination}`)
+                  arrivals.push({
+                    id: `${trip.tripId}-${stationId}`,
+                    line: routeId,
+                    time: arrivalTime,
+                    minutesAway,
+                    delayed: delaySec ? delaySec > 300 : false,
+                    destination,
+                    tripId: trip.tripId,
+                    stationName: getStationName(stationId),
+                  })
                 } else {
-                  console.log(`Stop matched but no arrival time found for line ${routeId}`);
+                  console.log(`Skipping arrival: Line ${routeId}, ${minutesAway} minutes away (outside 0-60 minute window)`)  
                 }
                 break
               }
@@ -314,8 +315,8 @@ export async function getDestinationTimes(tripId: string, line: string): Promise
               
               const minutesAway = Math.floor((arrivalTimestamp - now) / 60)
               
-              // Only include future arrivals
-              if (minutesAway > 0) {
+              // Include current station (minutesAway >= 0) rather than only future stations
+              if (minutesAway >= 0) {
                 const stationId = update.stopId.slice(0, -1) // Remove direction character
                 
                 destinations.push({

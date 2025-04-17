@@ -7,6 +7,8 @@ import LineToggle from "@/components/line-toggle"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { getStationName } from "@/lib/station-utils"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 
 // Helper function to get line colors
 const getLineColor = (line: string): string => {
@@ -90,6 +92,7 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
   const [availableLines, setAvailableLines] = useState<string[]>([])
   const [enabledLines, setEnabledLines] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
+  const [extraStations, setExtraStations] = useState<StationType[]>([]) // Stores stations that aren't in user's saved list
 
   // Load user stations
   useEffect(() => {
@@ -170,6 +173,25 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
     }
   }, [selectedStation, direction])
 
+  // Get directional text based on selected station lines
+  const getDirectionText = () => {
+    // For L train stations, use Manhattan/Brooklyn instead of Uptown/Downtown
+    if (selectedStation && selectedStation.lines.includes('L')) {
+      return {
+        N: 'Manhattan',
+        S: 'Brooklyn'
+      }
+    }
+    
+    // Default directional text
+    return {
+      N: 'Uptown',
+      S: 'Downtown'
+    }
+  }
+
+  const directionLabels = getDirectionText()
+
   const toggleLine = (line: string) => {
     setEnabledLines((prev) => ({
       ...prev,
@@ -178,7 +200,43 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
   }
 
   const activeLines = availableLines.filter((line) => enabledLines[line])
-  const directionText = direction === "N" ? "Uptown" : "Downtown"
+  const directionText = direction === "N" ? directionLabels.N : directionLabels.S
+  
+  // Determine which lines should be running but aren't
+  const missingLines = selectedStation ? 
+    selectedStation.lines.filter(line => !availableLines.includes(line)) : 
+    []
+
+  const handleExtraStationSelect = (stationId: string, stationName: string) => {
+    // Check if we already have this station in our state
+    const existingStation = [...stations, ...extraStations].find(s => s.id === stationId)
+    
+    if (existingStation) {
+      setSelectedStation(existingStation)
+      return
+    }
+    
+    // Create a new station object for the station
+    const lines = getLinesForStation(stationId)
+    
+    // Create line colors map
+    const lineColors: Record<string, string> = {}
+    lines.forEach((line) => {
+      lineColors[line] = getLineColor(line)
+    })
+    
+    const newStation: StationType = {
+      id: stationId,
+      name: stationName,
+      stationId: stationId,
+      lines,
+      lineColors,
+    }
+    
+    // Add to our extra stations and select it
+    setExtraStations(prev => [...prev, newStation])
+    setSelectedStation(newStation)
+  }
 
   if (!selectedStation) {
     return (
@@ -244,13 +302,19 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
       <Card className="border-t-4 mt-4" style={{ borderTopColor: selectedStation.lines[0] ? (selectedStation.lineColors[selectedStation.lines[0]] || getLineColor(selectedStation.lines[0])) : 'currentColor' }}>
         <CardHeader className="pb-3">
           <CardTitle className="flex flex-col sm:flex-row justify-between items-center gap-2">
-            <span className="text-center sm:text-left">{selectedStation.name}</span>
+            <span className="text-center sm:text-left">
+              {selectedStation.name}
+              {/* Show indicator if this is a station not in user's saved list */}
+              {!stations.some(s => s.id === selectedStation.id) && (
+                <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Temporary</span>
+              )}
+            </span>
             <div className="flex space-x-2">
               <Button variant={direction === "N" ? "default" : "outline"} size="sm" onClick={() => setDirection("N")}>
-                Uptown
+                {directionLabels.N}
               </Button>
               <Button variant={direction === "S" ? "default" : "outline"} size="sm" onClick={() => setDirection("S")}>
-                Downtown
+                {directionLabels.S}
               </Button>
             </div>
           </CardTitle>
@@ -274,6 +338,32 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
             </div>
           ) : (
             <>
+              {/* Display alert for missing lines */}
+              {missingLines.length > 0 && (
+                <Alert variant="destructive" className="mb-4 py-2 text-sm flex justify-center items-center">
+                  <div className="flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    <AlertDescription className="flex items-center">
+                      Lines not running: {' '}
+                      <span className="flex flex-wrap gap-1 ml-1">
+                        {missingLines.map((line) => (
+                          <span 
+                            key={line} 
+                            className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full"
+                            style={{
+                              backgroundColor: selectedStation.lineColors[line] || getLineColor(line),
+                              color: ['yellow', 'orange'].includes(selectedStation.lineColors[line] || getLineColor(line)) ? 'black' : 'white'
+                            }}
+                          >
+                            {line}
+                          </span>
+                        ))}
+                      </span>
+                    </AlertDescription>
+                  </div>
+                </Alert>
+              )}
+
               {availableLines.length > 0 ? (
                 <>
                   <div className="flex flex-wrap gap-2 mb-8">
@@ -294,6 +384,7 @@ export default function StationSelector({ userStations = [] }: StationSelectorPr
                       direction={direction}
                       lines={activeLines}
                       title={`${directionText} Trains - Next Hour`}
+                      onStationSelect={handleExtraStationSelect}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500">

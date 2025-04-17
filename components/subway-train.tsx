@@ -3,15 +3,16 @@
 import { useState } from "react"
 import { Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Arrival } from "@/lib/mta"
 
 interface SubwayTrainProps {
   arrival: Arrival
+  onStationSelect?: (stationId: string, stationName: string) => void
 }
 
-export default function SubwayTrain({ arrival }: SubwayTrainProps) {
+export default function SubwayTrain({ arrival, onStationSelect }: SubwayTrainProps) {
   const [destinations, setDestinations] = useState<Arrival[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -111,7 +112,21 @@ export default function SubwayTrain({ arrival }: SubwayTrainProps) {
                 <div key={index} className="flex items-start mb-4 relative pl-10">
                   <div className="absolute left-3 w-3 h-3 rounded-full bg-gray-400 -ml-1.5 mt-2"></div>
                   <div className="flex-1">
-                    <p className="font-medium">{dest.stationName}</p>
+                    {onStationSelect ? (
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto font-medium text-left"
+                        onClick={() => {
+                          if (dest.stationName && onStationSelect) {
+                            onStationSelect(dest.id.split('-')[1], dest.stationName)
+                          }
+                        }}
+                      >
+                        {dest.stationName}
+                      </Button>
+                    ) : (
+                      <p className="font-medium">{dest.stationName}</p>
+                    )}
                     <div className="flex items-center text-sm text-gray-500">
                       <Clock className="w-3 h-3 mr-1" />
                       <span>{dest.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
