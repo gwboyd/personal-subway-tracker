@@ -82,6 +82,7 @@ export default function Home() {
           <StationSelector 
             userStations={userStations} 
             isGuestMode={isGuestMode}
+            isLoggedIn={isLoggedIn}
             onExitGuestMode={handleExitGuestMode}
           />
         </Suspense>

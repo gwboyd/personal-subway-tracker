@@ -14,6 +14,7 @@ import { AlertTriangle } from "lucide-react"
 import stationData from "@/lib/station-data.json"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { getTempStationsFromLocalStorage, saveTempStationsToLocalStorage, clearTempStationsFromLocalStorage } from "@/lib/temp-stations"
 
 // Search box that does not re-render the main selector on typing
 const StationSearch = memo(function StationSearch({ onSelect }: { onSelect: (id: string, name: string) => void }) {
@@ -161,6 +162,7 @@ const getLinesForStation = (stationId: string): string[] => {
 interface StationSelectorProps {
   userStations?: string[]
   isGuestMode?: boolean
+  isLoggedIn?: boolean
   onExitGuestMode?: () => void
 }
 
@@ -171,11 +173,13 @@ type StationType = {
   stationId: string;
   lines: string[];
   lineColors: Record<string, string>;
+  isTemporary?: boolean;
 };
 
 export default function StationSelector({ 
   userStations = [], 
   isGuestMode = false,
+  isLoggedIn = false,
   onExitGuestMode 
 }: StationSelectorProps) {
   // Convert user stations to station objects
@@ -185,11 +189,15 @@ export default function StationSelector({
   const [availableLines, setAvailableLines] = useState<string[]>([])
   const [enabledLines, setEnabledLines] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
+  const [tempStations, setTempStations] = useState<StationType[]>([])
   const [extraStations, setExtraStations] = useState<StationType[]>([])
 
-  // Load user stations or default to W 4th St in guest mode
+  // Load user stations and temporary stations from localStorage
   useEffect(() => {
     const loadUserStations = () => {
+      // Load temporary stations from local storage
+      const tempStationIds = getTempStationsFromLocalStorage()
+      
       if (isGuestMode) {
         // W 4th St station ID is "167"
         const stationId = "A32"
@@ -211,12 +219,18 @@ export default function StationSelector({
         setStations([])
         setSelectedStation(w4thStation)
         setExtraStations([w4thStation])
+        
+        // Load temporary stations
+        loadTempStations(tempStationIds)
         return
       }
 
       if (userStations.length === 0) {
         setStations([])
         setSelectedStation(null)
+        
+        // Load temporary stations
+        loadTempStations(tempStationIds)
         return
       }
 
@@ -240,10 +254,49 @@ export default function StationSelector({
 
       setStations(userStationObjects)
       setSelectedStation(userStationObjects[0] || null)
+      
+      // Load temporary stations
+      loadTempStations(tempStationIds)
+    }
+
+    const loadTempStations = (tempStationIds: string[]) => {
+      if (tempStationIds.length === 0) {
+        setTempStations([])
+        return
+      }
+      
+      // Convert temp station IDs to station objects
+      const tempStationObjects = tempStationIds.map((stationId) => {
+        const stationName = getStationName(stationId) || `Station ${stationId}`
+        const lines = getLinesForStation(stationId)
+        const lineColors: Record<string, string> = {}
+        lines.forEach((line) => {
+          lineColors[line] = getLineColor(line)
+        })
+
+        return {
+          id: stationId,
+          name: stationName,
+          stationId: stationId,
+          lines,
+          lineColors,
+          isTemporary: true,
+        }
+      })
+      
+      setTempStations(tempStationObjects)
     }
 
     loadUserStations()
   }, [userStations, isGuestMode])
+
+  // Clear temporary stations when a user logs out
+  useEffect(() => {
+    if (!isGuestMode && !isLoggedIn) {
+      clearTempStationsFromLocalStorage()
+      setTempStations([])
+    }
+  }, [isGuestMode, isLoggedIn])
 
   // Fetch available lines whenever selected station or direction changes
   useEffect(() => {
@@ -308,7 +361,7 @@ export default function StationSelector({
 
   const handleExtraStationSelect = (stationId: string, stationName: string) => {
     // Check if we already have this station in our state
-    const existingStation = [...stations, ...extraStations].find(s => s.id === stationId)
+    const existingStation = [...stations, ...extraStations, ...tempStations].find(s => s.id === stationId)
     
     if (existingStation) {
       setSelectedStation(existingStation)
@@ -336,10 +389,45 @@ export default function StationSelector({
     setExtraStations(prev => [...prev, newStation])
     setSelectedStation(newStation)
   }
+  
+  // Add or remove a station from temporary pins
+  const toggleTemporaryStation = (station: StationType) => {
+    // If it's already in the temporary stations, remove it
+    if (tempStations.some(s => s.id === station.id)) {
+      const updatedTempStations = tempStations.filter(s => s.id !== station.id)
+      setTempStations(updatedTempStations)
+      
+      // Update the localStorage
+      saveTempStationsToLocalStorage(updatedTempStations.map(s => s.id))
+      
+      // If the current station is the one being removed and it's not in stations or extraStations,
+      // switch to the first available station
+      if (selectedStation?.id === station.id && 
+          !stations.some(s => s.id === station.id) && 
+          !extraStations.some(s => s.id === station.id)) {
+        const nextStation = stations[0] || extraStations[0] || (updatedTempStations.length > 0 ? updatedTempStations[0] : null)
+        setSelectedStation(nextStation)
+      }
+    } else {
+      // Add to temporary stations
+      const tempStation: StationType = {
+        ...station,
+        isTemporary: true
+      }
+      
+      const updatedTempStations = [...tempStations, tempStation]
+      setTempStations(updatedTempStations)
+      
+      // Update the localStorage
+      saveTempStationsToLocalStorage(updatedTempStations.map(s => s.id))
+    }
+  }
 
-  // Controlled tab value: only highlight if selected station is one of the saved stations
-  const tabValue = selectedStation != null && stations.some(s => s.id === selectedStation.id)
-    ? selectedStation.id
+  // Controlled tab value: highlight if selected station is one of the saved or temporary stations
+  const tabValue = selectedStation != null 
+    ? (stations.some(s => s.id === selectedStation.id) || tempStations.some(s => s.id === selectedStation.id)) 
+      ? selectedStation.id 
+      : ""
     : ""
 
   if (!selectedStation) {
@@ -393,18 +481,19 @@ export default function StationSelector({
         )}
       </div>
 
-      {!isGuestMode && (
+      {(!isGuestMode || tempStations.length > 0) && (
         <div className="relative">
           <Tabs
             value={tabValue}
             onValueChange={(value) => {
-              const station = [...stations, ...extraStations].find((s) => s.id === value)
+              const station = [...stations, ...tempStations, ...extraStations].find((s) => s.id === value)
               if (station) setSelectedStation(station)
             }}
           >
             <div className="flex justify-center mb-8">
               <div className="w-full max-w-3xl">
                 <TabsList className="flex flex-wrap justify-center gap-4 bg-transparent p-0 h-auto">
+                  {/* User favorite stations */}
                   {stations.map((station) => (
                     <TabsTrigger 
                       key={station.id} 
@@ -414,6 +503,44 @@ export default function StationSelector({
                                 data-[state=active]:shadow-md data-[state=active]:scale-105 
                                 data-[state=active]:z-10 data-[state=active]:font-bold
                                 rounded-md border border-gray-200 hover:bg-gray-50"
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="text-center truncate w-full">{station.name}</span>
+                        {station.lines && station.lines.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-1 mt-1">
+                            {station.lines.slice(0, 5).map((line) => (
+                              <span 
+                                key={line} 
+                                className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full"
+                                style={{
+                                  backgroundColor: station.lineColors[line] || getLineColor(line),
+                                  color: shouldUseBlackText(line) ? 'black' : 'white'
+                                }}
+                              >
+                                {line}
+                              </span>
+                            ))}
+                            {station.lines.length > 5 && (
+                              <span className="text-xs">+{station.lines.length - 5}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TabsTrigger>
+                  ))}
+                  
+                  {/* Temporary stations */}
+                  {tempStations.map((station) => (
+                    <TabsTrigger 
+                      key={station.id} 
+                      value={station.id}
+                      className="min-w-[150px] max-w-[200px] flex-grow-0 py-3 px-4 
+                                text-sm font-medium transition-all 
+                                data-[state=active]:shadow-md data-[state=active]:scale-105 
+                                data-[state=active]:z-10 data-[state=active]:font-bold
+                                rounded-md border border-gray-200 hover:bg-gray-50 border-dashed"
+                      // No onClick handler here - we only want the default tab selection behavior
+                      // Removal is handled by the "Temporary" button in the card header
                     >
                       <div className="flex flex-col items-center">
                         <span className="text-center truncate w-full">{station.name}</span>
@@ -451,9 +578,18 @@ export default function StationSelector({
           <CardTitle className="flex flex-col sm:flex-row justify-between items-center gap-2">
             <span className="text-center sm:text-left flex items-center gap-2">
               {selectedStation.name}
-              {/* Show indicator if this is a station not in user's saved list */}
+              {/* Show clickable Temporary indicator */}
               {!stations.some(s => s.id === selectedStation.id) && (
-                <span className="inline-flex items-center text-xs bg-gray-100 text-gray-600 px-2 rounded-full h-5">Temporary</span>
+                <button 
+                  onClick={() => toggleTemporaryStation(selectedStation)}
+                  className={`inline-flex items-center text-xs px-2 rounded-full h-5 transition-colors ${
+                    tempStations.some(s => s.id === selectedStation.id) 
+                      ? "bg-black text-white" 
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  Temporary
+                </button>
               )}
             </span>
             <div className="flex space-x-2">
