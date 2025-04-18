@@ -7,6 +7,8 @@ import LineToggle from "@/components/line-toggle"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { getStationName } from "@/lib/station-utils"
+import { getLineColor, shouldUseBlackText } from "@/lib/line-info"
+import { getDirectionLabelsForLines } from "@/lib/direction-labels"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
 import stationData from "@/lib/station-data.json"
@@ -134,51 +136,7 @@ const StationSearch = memo(function StationSearch({ onSelect }: { onSelect: (id:
 })
 
 // Helper function to get line colors
-export const getLineColor = (line: string): string => {
-  switch (line.charAt(0)) {
-    case "A":
-    case "C":
-    case "E":
-      return "blue"
-    case "B":
-    case "D":
-    case "F":
-    case "M":
-      return "#ff5d0d"
-    case "N":
-    case "Q":
-    case "R":
-    case "W":
-      return "#f9c506"  // Using Tailwind yellow-500 hex color
-    case "1":
-    case "2":
-    case "3":
-      return "red"
-    case "4":
-    case "5":
-    case "6":
-      return "green"
-    case "7":
-      return "purple"
-    case "G":
-      return "green"
-    case "J":
-    case "Z":
-      return "brown"
-    case "L":
-      return "gray"
-    case "S":
-      return "gray"
-    default:
-      return "gray"
-  }
-}
-
-// Helper function to determine if a line should use black text
-export const shouldUseBlackText = (line: string): boolean => {
-  const firstChar = line.charAt(0)
-  return ['N', 'Q', 'R', 'W'].includes(firstChar)
-}
+// getLineColor and shouldUseBlackText are now centralised in lib/line-info.ts
 
 // Function to get lines for a station from station-data.json
 // Uses GTFS Stop ID at index 8 and Daytime Routes at index 16
@@ -328,24 +286,8 @@ export default function StationSelector({
     }
   }, [selectedStation, direction])
 
-  // Get directional text based on selected station lines
-  const getDirectionText = () => {
-    // For L train stations, use Manhattan/Brooklyn instead of Uptown/Downtown
-    if (selectedStation && selectedStation.lines.includes('L')) {
-      return {
-        N: 'Manhattan',
-        S: 'Brooklyn'
-      }
-    }
-    
-    // Default directional text
-    return {
-      N: 'Uptown',
-      S: 'Downtown'
-    }
-  }
-
-  const directionLabels = getDirectionText()
+  // Determine which labels to use for the N/S buttons based on the lines available at this station
+  const directionLabels = getDirectionLabelsForLines(selectedStation ? selectedStation.lines : [])
 
   const toggleLine = (line: string) => {
     setEnabledLines((prev) => ({

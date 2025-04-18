@@ -11,7 +11,7 @@ import { saveUserStations, saveUserToLocalStorage, getUserByPhone } from "@/lib/
 import stationData from "@/lib/station-data.json"
 
 // Import the getLineColor function from the main station selector
-import { getLineColor, shouldUseBlackText } from "@/components/station-selector"
+import { getLineColor, shouldUseBlackText } from "@/lib/line-info"
 
 interface StationSelectorProps {
   userId: string

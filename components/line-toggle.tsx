@@ -1,4 +1,5 @@
 import { Switch } from "@/components/ui/switch"
+import { shouldUseBlackText } from "@/lib/line-info"
 
 interface LineToggleProps {
   line: string
@@ -49,7 +50,8 @@ const lineCodeMap: Record<string, string> = {
 
 export default function LineToggle({ line, color, enabled, onToggle }: LineToggleProps) {
   const bgColor = getBackgroundColor(color)
-  const textColor = getTextColor(color)
+  // Determine text colour based on the route, not the raw colour string
+  const textColor = shouldUseBlackText(line) ? 'text-black' : 'text-white'
   
   // Get the display line name from the map, or use the original if not found
   const displayLine = lineCodeMap[line] || line
@@ -103,12 +105,4 @@ function getBackgroundColor(color: string): string {
   }
 }
 
-function getTextColor(color: string): string {
-  switch (color) {
-    case "yellow":
-    case "#f9c506":
-      return "text-black"
-    default:
-      return "text-white"
-  }
-}
+// getTextColor logic has been replaced by shouldUseBlackText in lib/line-info
