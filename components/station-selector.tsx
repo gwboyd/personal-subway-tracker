@@ -296,7 +296,9 @@ export default function StationSelector({
     }))
   }
 
-  const activeLines = availableLines.filter((line) => enabledLines[line])
+  const activeLines = Array.isArray(availableLines) 
+    ? availableLines.filter(line => enabledLines[line])
+    : []
   const directionText = direction === "N" ? directionLabels.N : directionLabels.S
   
   // Determine which lines should be running but aren't
@@ -368,6 +370,10 @@ export default function StationSelector({
       </div>
     )
   }
+
+  // Check if this is a terminal station
+  const isTerminalStation = (stationData.data as any[])
+    .find(station => station[8] === selectedStation.stationId)?.[20] === "Last Stop"
 
   return (
     <div className="space-y-8">
@@ -443,20 +449,28 @@ export default function StationSelector({
       <Card className="border-t-4 mt-4" style={{ borderTopColor: selectedStation.lines[0] ? (selectedStation.lineColors[selectedStation.lines[0]] || getLineColor(selectedStation.lines[0])) : 'currentColor' }}>
         <CardHeader className="pb-3">
           <CardTitle className="flex flex-col sm:flex-row justify-between items-center gap-2">
-            <span className="text-center sm:text-left">
+            <span className="text-center sm:text-left flex items-center gap-2">
               {selectedStation.name}
               {/* Show indicator if this is a station not in user's saved list */}
               {!stations.some(s => s.id === selectedStation.id) && (
-                <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Temporary</span>
+                <span className="inline-flex items-center text-xs bg-gray-100 text-gray-600 px-2 rounded-full h-5">Temporary</span>
               )}
             </span>
             <div className="flex space-x-2">
-              <Button variant={direction === "N" ? "default" : "outline"} size="sm" onClick={() => setDirection("N")}>
-                {directionLabels.N}
-              </Button>
-              <Button variant={direction === "S" ? "default" : "outline"} size="sm" onClick={() => setDirection("S")}>
-                {directionLabels.S}
-              </Button>
+              {!isTerminalStation ? (
+                <>
+                  <Button variant={direction === "N" ? "default" : "outline"} size="sm" onClick={() => setDirection("N")}>
+                    {directionLabels.N}
+                  </Button>
+                  <Button variant={direction === "S" ? "default" : "outline"} size="sm" onClick={() => setDirection("S")}>
+                    {directionLabels.S}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="default" size="sm" disabled>
+                  {directionLabels[direction]}
+                </Button>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
@@ -535,7 +549,34 @@ export default function StationSelector({
                 </>
               ) : (
                 <div className="text-center py-8 text-gray-500">
-                  <p>No trains scheduled at this station in the next hour.</p>
+                  <div className="flex flex-col items-center gap-4">
+                    <p>No trains scheduled at this station in the next hour.</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={async () => {
+                        setLoading(true)
+                        try {
+                          const response = await fetch(`/api/subway/available-lines?stationId=${selectedStation.stationId}&direction=${direction}&lines=${selectedStation.lines.join(',')}`).then(r => r.json())
+                          const lines = Array.isArray(response) ? response : []
+                          setAvailableLines(lines)
+                          const enabledLinesObj = lines.reduce((acc: Record<string, boolean>, line: string) => {
+                            acc[line] = true
+                            return acc
+                          }, {})
+                          setEnabledLines(enabledLinesObj)
+                        } catch (error) {
+                          console.error('Error fetching available lines:', error)
+                          setAvailableLines([])
+                          setEnabledLines({})
+                        }
+                        setLoading(false)
+                      }}
+                      disabled={loading}
+                    >
+                      {loading ? "Refreshing..." : "Refresh"}
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

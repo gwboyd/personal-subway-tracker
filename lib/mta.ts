@@ -55,6 +55,7 @@ const LINE_TO_FEED: Record<string, string> = {
   Z: FEED_URLS.JZ,
   G: FEED_URLS.G,
   L: FEED_URLS.L,
+  S: FEED_URLS["1234567"], // Shuttle lines use the main 1234567 feed
   // Numeric codes for lines
   "101": FEED_URLS["1234567"], // 1 train
   "137": FEED_URLS["1234567"], // 3 train
