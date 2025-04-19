@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, memo, useRef } from "react"
+import { useState, useEffect, memo, useRef, useCallback } from "react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import SubwayLines from "@/components/subway-lines"
 import LineToggle from "@/components/line-toggle"
@@ -19,7 +19,7 @@ import { getTempStationsFromLocalStorage, saveTempStationsToLocalStorage, clearT
 // Search box that does not re-render the main selector on typing
 const StationSearch = memo(function StationSearch({ onSelect }: { onSelect: (id: string, name: string) => void }) {
   const [searchTerm, setSearchTerm] = useState<string>("")
-  const [searchResults, setSearchResults] = useState<{ id: string; name: string }[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isResultsVisible, setIsResultsVisible] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
@@ -37,47 +37,34 @@ const StationSearch = memo(function StationSearch({ onSelect }: { onSelect: (id:
     }
   }, [])
 
-  useEffect(() => {
-    if (!searchTerm) {
+  const handleSearch = useCallback((term: string) => {
+    if (!term.trim()) {
       setSearchResults([])
-      setIsResultsVisible(false)
       return
     }
-    const results = (stationData.data as any[])
-      .map((station) => {
-        const id = String(station[8])
-        const name = String(station[13])
-        const lines = station[16] ? String(station[16]).split(" ") : []
-        return { id, name, lines }
+
+    const searchTermLower = term.toLowerCase()
+    const results = stationData.data
+      .filter(station => {
+        const name = String(station[13] || '').toLowerCase()
+        const lineStr = String(station[16] || '')
+        const lines = lineStr ? lineStr.split(" ") : []
+        return name.includes(searchTermLower) || lines.some(line => line.toLowerCase().includes(searchTermLower))
       })
-      .filter((s) => {
-        const searchLower = searchTerm.toLowerCase()
-        // Check if search matches station name
-        if (s.name.toLowerCase().includes(searchLower)) {
-          return true
-        }
-        // Check if search matches any line combinations
-        const searchChars = searchLower.split('').filter(char => /[a-z0-9]/.test(char))
-        if (searchChars.length > 0) {
-          const stationLines = s.lines.map(line => line.toLowerCase())
-          // Check if all search characters match the beginning of some line
-          return searchChars.every(char => 
-            stationLines.some(line => line.startsWith(char))
-          )
-        }
-        return false
-      })
-      .sort((a, b) => {
-        // Prioritize exact station name matches
-        const aNameMatch = a.name.toLowerCase().includes(searchTerm.toLowerCase())
-        const bNameMatch = b.name.toLowerCase().includes(searchTerm.toLowerCase())
-        if (aNameMatch && !bNameMatch) return -1
-        if (!aNameMatch && bNameMatch) return 1
-        return 0
-      })
-    setSearchResults(results.slice(0, 15)) // Show more results
-    setIsResultsVisible(true)
-  }, [searchTerm])
+      .slice(0, 20)
+      .map(station => ({
+        id: String(station[8] || ''),
+        name: String(station[13] || ''),
+        lines: String(station[16] || '').split(" ").filter(Boolean)
+      }))
+
+    setSearchResults(results)
+  }, [])
+
+  useEffect(() => {
+    handleSearch(searchTerm)
+    setIsResultsVisible(!!searchTerm)
+  }, [searchTerm, handleSearch])
 
   const handleSelect = (id: string, name: string) => {
     onSelect(id, name)
@@ -96,45 +83,46 @@ const StationSearch = memo(function StationSearch({ onSelect }: { onSelect: (id:
         className="mb-2"
       />
       {isResultsVisible && searchResults.length > 0 && (
-        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-md top-full left-0 shadow-lg">
-          <ScrollArea className="max-h-[40vh] sm:max-h-[50vh]">
-            <ul className="divide-y divide-gray-100">
-              {searchResults.map((s) => {
-                const lines = getLinesForStation(s.id)
-                return (
-                  <li
-                    key={s.id}
-                    className="px-3 py-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                    onClick={() => { handleSelect(s.id, s.name) }}
-                  >
-                    <span>{s.name}</span>
-                    <div className="flex items-center gap-1 ml-2">
-                      {lines.slice(0, 5).map((line) => (
-                        <span
-                          key={line}
-                          className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full"
-                          style={{
-                            backgroundColor: getLineColor(line),
-                            color: shouldUseBlackText(line) ? 'black' : 'white'
-                          }}
-                        >
-                          {line}
-                        </span>
-                      ))}
-                      {lines.length > 5 && (
-                        <span className="text-xs text-gray-600">+{lines.length - 5}</span>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </ScrollArea>
+        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1">
+          <div className="max-h-[300px] overflow-y-auto">
+            {searchResults.map((s) => (
+              <div
+                key={s.id}
+                className="px-3 py-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                onClick={() => { handleSelect(s.id, s.name) }}
+              >
+                <span>{s.name}</span>
+                <div className="flex items-center gap-1 ml-2">
+                  {s.lines.slice(0, 5).map((line: string) => (
+                    <span
+                      key={line}
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{
+                        backgroundColor: getLineColor(line),
+                        color: shouldUseBlackText(line) ? 'black' : 'white',
+                      }}
+                    >
+                      {line}
+                    </span>
+                  ))}
+                  {s.lines.length > 5 && (
+                    <span className="text-xs text-gray-600">+{s.lines.length - 5}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   )
 })
+
+interface SearchResult {
+  id: string
+  name: string
+  lines: string[]
+}
 
 // Helper function to get line colors
 // getLineColor and shouldUseBlackText are now centralised in lib/line-info.ts
