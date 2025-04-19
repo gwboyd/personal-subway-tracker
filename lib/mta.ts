@@ -56,6 +56,7 @@ const LINE_TO_FEED: Record<string, string> = {
   G: FEED_URLS.G,
   L: FEED_URLS.L,
   S: FEED_URLS["1234567"], // Shuttle lines use the main 1234567 feed
+  GS: FEED_URLS["1234567"], // Grand Central Shuttle (sometimes reported as GS)
   // Numeric codes for lines
   "101": FEED_URLS["1234567"], // 1 train
   "137": FEED_URLS["1234567"], // 3 train
@@ -148,7 +149,10 @@ export async function getAvailableLines(
     const allArrivals = await getSubwayArrivals(stationId, direction, possibleLines)
     
     // Get unique lines that have arrivals
-    const availableLines = [...new Set(allArrivals.map(arrival => arrival.line))]
+    const availableLines = [...new Set(allArrivals.map(arrival => {
+      // Normalize GS to S for consistency in the UI
+      return arrival.line === 'GS' ? 'S' : arrival.line
+    }))]
     return availableLines
   } catch (error) {
     console.error('Error fetching available lines:', error)
@@ -193,7 +197,7 @@ export async function getSubwayArrivals(stationId: string, direction: "N" | "S",
           const routeId = trip.routeId
           
           // Skip if not one of the requested lines
-          if (!lines.includes(routeId)) continue
+          if (!lines.includes(routeId) && !(routeId === 'GS' && lines.includes('S'))) continue
           
           // Check if this trip has a stop at our station in the right direction
           if (entity.tripUpdate.stopTimeUpdate) {
@@ -219,40 +223,39 @@ export async function getSubwayArrivals(stationId: string, direction: "N" | "S",
                 // Use arrival time or fallback to departure time for the station
                 let timeSec: number | undefined
                 let delaySec: number | undefined
-                if (update.arrival && update.arrival.time) {
-                  timeSec = update.arrival.time.low ?? update.arrival.time
+                
+                if (update.arrival) {
+                  timeSec = parseInt(update.arrival.time)
                   delaySec = update.arrival.delay
-                } else if (update.departure && update.departure.time) {
-                  timeSec = update.departure.time.low ?? update.departure.time
+                } else if (update.departure) {
+                  timeSec = parseInt(update.departure.time)
                   delaySec = update.departure.delay
                 }
-                // Validate timestamp
-                if (timeSec == null || isNaN(timeSec) || timeSec <= 0) {
-                  console.log(`No valid arrival/departure time for line ${routeId}: ${timeSec}`)
-                  break
+                
+                if (timeSec) {
+                  const minutesAway = Math.floor((timeSec - now) / 60)
+                  
+                  // Include trains 0–60 minutes away
+                  if (minutesAway >= 0 && minutesAway <= 60) {
+                    const arrivalTime = new Date(timeSec * 1000)
+                    const destination = lastStopId
+                      ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown'
+                      : trip.tripHeadsign || 'Unknown'
+                    console.log(`Found arrival: Line ${routeId}, ${minutesAway} minutes away, destination: ${destination}`)
+                    arrivals.push({
+                      id: `${trip.tripId}-${stationId}`,
+                      line: routeId === 'GS' ? 'S' : routeId,
+                      time: arrivalTime,
+                      minutesAway,
+                      delayed: delaySec ? delaySec > 300 : false,
+                      destination,
+                      tripId: trip.tripId,
+                      stationName: getStationName(stationId),
+                    })
+                  } else {
+                    console.log(`Skipping arrival: Line ${routeId}, ${minutesAway} minutes away (outside 0-60 minute window)`)  
+                  }
                 }
-                const minutesAway = Math.floor((timeSec - now) / 60)
-                // Include trains 0–60 minutes away
-                if (minutesAway >= 0 && minutesAway <= 60) {
-                  const arrivalTime = new Date(timeSec * 1000)
-                  const destination = lastStopId
-                    ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown'
-                    : trip.tripHeadsign || 'Unknown'
-                  console.log(`Found arrival: Line ${routeId}, ${minutesAway} minutes away, destination: ${destination}`)
-                  arrivals.push({
-                    id: `${trip.tripId}-${stationId}`,
-                    line: routeId,
-                    time: arrivalTime,
-                    minutesAway,
-                    delayed: delaySec ? delaySec > 300 : false,
-                    destination,
-                    tripId: trip.tripId,
-                    stationName: getStationName(stationId),
-                  })
-                } else {
-                  console.log(`Skipping arrival: Line ${routeId}, ${minutesAway} minutes away (outside 0-60 minute window)`)  
-                }
-                break
               }
             }
           } else {
@@ -275,7 +278,8 @@ export async function getSubwayArrivals(stationId: string, direction: "N" | "S",
 
 export async function getDestinationTimes(tripId: string, line: string): Promise<Arrival[]> {
   try {
-    const feedUrl = getFeedUrlForLine(line)
+    // Handle both S and GS for shuttle line
+    const feedUrl = getFeedUrlForLine(line === 'GS' ? 'S' : line)
     if (!feedUrl) {
       throw new Error(`No feed URL found for line: ${line}`)
     }
@@ -286,6 +290,10 @@ export async function getDestinationTimes(tripId: string, line: string): Promise
     
     for (const entity of feed.entity) {
       if (entity.tripUpdate && entity.tripUpdate.trip && entity.tripUpdate.trip.tripId === tripId) {
+        // Found our trip
+        const trip = entity.tripUpdate.trip
+        const routeId = trip.routeId === 'GS' ? 'S' : trip.routeId // Normalize GS to S
+        
         // Find the last stop to use as destination
         let lastStopId = '';
         
@@ -299,8 +307,8 @@ export async function getDestinationTimes(tripId: string, line: string): Promise
         
         // Get the destination from the last stop or fall back to tripHeadsign
         const finalDestination = lastStopId 
-          ? getStationName(lastStopId) || entity.tripUpdate.trip.tripHeadsign || 'Unknown' 
-          : entity.tripUpdate.trip.tripHeadsign || 'Unknown';
+          ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown' 
+          : trip.tripHeadsign || 'Unknown';
         
         if (entity.tripUpdate.stopTimeUpdate) {
           for (const update of entity.tripUpdate.stopTimeUpdate) {
