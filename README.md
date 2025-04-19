@@ -19,6 +19,8 @@
  - Real-time subway arrival times (1–60 minutes ahead)
  - Filter by station, direction (Uptown/Downtown), and line
  - Save favorite stations per user (phone-based auth)
+ - Temporary station pinning with browser persistence
+ - Guest mode for users without accounts
  - Progressive Web App support with service worker caching
  - Serverless API routes powered by Next.js
  - Supabase for user management and data persistence

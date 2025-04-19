@@ -107,7 +107,7 @@ const StationSearch = memo(function StationSearch({ onSelect }: { onSelect: (id:
                     className="px-3 py-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
                     onClick={() => { handleSelect(s.id, s.name) }}
                   >
-                    <span className="truncate">{s.name}</span>
+                    <span>{s.name}</span>
                     <div className="flex items-center gap-1 ml-2">
                       {lines.slice(0, 5).map((line) => (
                         <span
@@ -342,6 +342,27 @@ export default function StationSelector({
   // Determine which labels to use for the N/S buttons based on the lines available at this station
   const directionLabels = getDirectionLabelsForLines(selectedStation ? selectedStation.lines : [])
 
+  // Check if this is a terminal station and get its direction
+  const stationInfo = (stationData.data as any[]).find(station => station[8] === selectedStation?.stationId)
+  
+  // Check both fields for "Last Stop" since it can appear in either position
+  const isTerminalStation = stationInfo?.[20] === "Last Stop" || stationInfo?.[21] === "Last Stop"
+  
+  // Handle direction based on where "Last Stop" appears:
+  // - If "Last Stop" is at index 20, flip the direction from index 21
+  // - If "Last Stop" is at index 21, use the direction from index 20 as-is
+  const effectiveDirection = isTerminalStation 
+    ? stationInfo?.[20] === "Last Stop"
+      // Last Stop at 20: flip the direction from 21
+      ? (stationInfo?.[21] && directionLabels[stationInfo[21].toLowerCase().startsWith('down') ? 'N' : 'S'] 
+        ? (stationInfo[21].toLowerCase().startsWith('down') ? 'N' : 'S')
+        : 'N')
+      // Last Stop at 21: use direction from 20 as-is
+      : (stationInfo?.[20] && directionLabels[stationInfo[20].toLowerCase().startsWith('down') ? 'S' : 'N'] 
+        ? (stationInfo[20].toLowerCase().startsWith('down') ? 'S' : 'N')
+        : 'N')
+    : direction
+
   const toggleLine = (line: string) => {
     setEnabledLines((prev) => ({
       ...prev,
@@ -352,7 +373,7 @@ export default function StationSelector({
   const activeLines = Array.isArray(availableLines) 
     ? availableLines.filter(line => enabledLines[line])
     : []
-  const directionText = direction === "N" ? directionLabels.N : directionLabels.S
+  const directionText = effectiveDirection === "N" ? directionLabels.N : directionLabels.S
   
   // Determine which lines should be running but aren't
   const missingLines = selectedStation ? 
@@ -459,10 +480,6 @@ export default function StationSelector({
     )
   }
 
-  // Check if this is a terminal station
-  const isTerminalStation = (stationData.data as any[])
-    .find(station => station[8] === selectedStation.stationId)?.[20] === "Last Stop"
-
   return (
     <div className="space-y-8">
       <div className="space-y-4 mb-4">
@@ -504,8 +521,23 @@ export default function StationSelector({
                                 data-[state=active]:z-10 data-[state=active]:font-bold
                                 rounded-md border border-gray-200 hover:bg-gray-50"
                     >
-                      <div className="flex flex-col items-center">
-                        <span className="text-center truncate w-full">{station.name}</span>
+                      <div className="flex flex-col items-center w-full">
+                        <div className="w-full overflow-hidden">
+                          <span className="block truncate">{station.name}</span>
+                        </div>
+                        {/* Show clickable Temporary indicator */}
+                        {!stations.some(s => s.id === station.id) && (
+                          <button 
+                            onClick={() => toggleTemporaryStation(station)}
+                            className={`inline-flex items-center text-xs px-2 rounded-full h-5 transition-colors ${
+                              tempStations.some(s => s.id === station.id) 
+                                ? "bg-black text-white" 
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            Temporary
+                          </button>
+                        )}
                         {station.lines && station.lines.length > 0 && (
                           <div className="flex flex-wrap justify-center gap-1 mt-1">
                             {station.lines.slice(0, 5).map((line) => (
@@ -542,8 +574,10 @@ export default function StationSelector({
                       // No onClick handler here - we only want the default tab selection behavior
                       // Removal is handled by the "Temporary" button in the card header
                     >
-                      <div className="flex flex-col items-center">
-                        <span className="text-center truncate w-full">{station.name}</span>
+                      <div className="flex flex-col items-center w-full">
+                        <div className="w-full overflow-hidden">
+                          <span className="block truncate">{station.name}</span>
+                        </div>
                         {station.lines && station.lines.length > 0 && (
                           <div className="flex flex-wrap justify-center gap-1 mt-1">
                             {station.lines.slice(0, 5).map((line) => (
@@ -595,16 +629,16 @@ export default function StationSelector({
             <div className="flex space-x-2">
               {!isTerminalStation ? (
                 <>
-                  <Button variant={direction === "N" ? "default" : "outline"} size="sm" onClick={() => setDirection("N")}>
+                  <Button variant={effectiveDirection === "N" ? "default" : "outline"} size="sm" onClick={() => setDirection("N")}>
                     {directionLabels.N}
                   </Button>
-                  <Button variant={direction === "S" ? "default" : "outline"} size="sm" onClick={() => setDirection("S")}>
+                  <Button variant={effectiveDirection === "S" ? "default" : "outline"} size="sm" onClick={() => setDirection("S")}>
                     {directionLabels.S}
                   </Button>
                 </>
               ) : (
                 <Button variant="default" size="sm" disabled>
-                  {directionLabels[direction]}
+                  {directionLabels[effectiveDirection]}
                 </Button>
               )}
             </div>
@@ -672,7 +706,7 @@ export default function StationSelector({
                   {activeLines.length > 0 ? (
                     <SubwayLines
                       stationId={selectedStation.stationId}
-                      direction={direction}
+                      direction={effectiveDirection}
                       lines={activeLines}
                       title={`${directionText} Trains - Next Hour`}
                       onStationSelect={handleExtraStationSelect}
@@ -693,7 +727,7 @@ export default function StationSelector({
                       onClick={async () => {
                         setLoading(true)
                         try {
-                          const response = await fetch(`/api/subway/available-lines?stationId=${selectedStation.stationId}&direction=${direction}&lines=${selectedStation.lines.join(',')}`).then(r => r.json())
+                          const response = await fetch(`/api/subway/available-lines?stationId=${selectedStation.stationId}&direction=${effectiveDirection}&lines=${selectedStation.lines.join(',')}`).then(r => r.json())
                           const lines = Array.isArray(response) ? response : []
                           setAvailableLines(lines)
                           const enabledLinesObj = lines.reduce((acc: Record<string, boolean>, line: string) => {
