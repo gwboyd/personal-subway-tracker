@@ -1,68 +1,80 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import type { Arrival } from "@/lib/mta"
-import SubwayTrain from "./subway-train"
-import { Button } from "@/components/ui/button"
-import { RefreshCw } from "lucide-react"
+import { useState, useEffect } from "react";
+import type { Arrival } from "@/lib/mta";
+import SubwayTrain from "./subway-train";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 interface SubwayLinesProps {
-  stationId: string
-  direction: "N" | "S"
-  lines: string[]
-  title: string
-  onStationSelect?: (stationId: string, stationName: string) => void
+  stationId: string;
+  direction: "N" | "S";
+  lines: string[];
+  title: string;
+  onStationSelect?: (stationId: string, stationName: string) => void;
 }
 
-export default function SubwayLines({ stationId, direction, lines, title, onStationSelect }: SubwayLinesProps) {
-  const [arrivals, setArrivals] = useState<Arrival[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+export default function SubwayLines({
+  stationId,
+  direction,
+  lines,
+  title,
+  onStationSelect,
+}: SubwayLinesProps) {
+  const [arrivals, setArrivals] = useState<Arrival[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchArrivals = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       // Fetch data from API endpoint instead of directly calling getSubwayArrivals
-      const response = await fetch(`/api/subway?stationId=${stationId}&direction=${direction}&lines=${lines.join(',')}`)
+      const response = await fetch(
+        `/api/subway?stationId=${stationId}&direction=${direction}&lines=${lines.join(
+          ","
+        )}`
+      );
       if (!response.ok) {
-        throw new Error('Failed to fetch arrivals')
+        throw new Error("Failed to fetch arrivals");
       }
-      const data = await response.json()
+      const data = await response.json();
       // Extract arrivals from the response and sort them
-      const arrivalsData = data.arrivals || []
-      
+      const arrivalsData = data.arrivals || [];
+
       // Convert time strings back to Date objects
       const processedArrivals = arrivalsData.map((arrival: any) => ({
         ...arrival,
-        time: new Date(arrival.time)
-      }))
-      
-      const sortedArrivals = processedArrivals.sort((a: Arrival, b: Arrival) => a.minutesAway - b.minutesAway)
-      setArrivals(sortedArrivals)
+        time: new Date(arrival.time),
+      }));
+
+      const sortedArrivals = processedArrivals.sort(
+        (a: Arrival, b: Arrival) => a.minutesAway - b.minutesAway
+      );
+      setArrivals(sortedArrivals);
     } catch (error) {
-      console.error("Error fetching subway arrivals:", error)
-      setArrivals([])
+      console.error("Error fetching subway arrivals:", error);
+      setArrivals([]);
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (stationId && direction && lines.length > 0) {
-      fetchArrivals()
+      fetchArrivals();
     } else {
-      setArrivals([])
-      setLoading(false)
+      setArrivals([]);
+      setLoading(false);
     }
-  }, [stationId, direction, lines])
+  }, [stationId, direction, lines]);
 
   const handleRefresh = () => {
     if (!refreshing && stationId && direction && lines.length > 0) {
-      setRefreshing(true)
-      fetchArrivals()
+      setRefreshing(true);
+      fetchArrivals();
     }
-  }
+  };
 
   // Show loading state
   if (loading && !refreshing) {
@@ -71,7 +83,10 @@ export default function SubwayLines({ stationId, direction, lines, title, onStat
         <h3 className="text-lg font-semibold">{title}</h3>
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="w-full h-16 rounded-md border bg-background p-4 flex items-center justify-between animate-pulse">
+            <div
+              key={i}
+              className="w-full h-16 rounded-md border bg-background p-4 flex items-center justify-between animate-pulse"
+            >
               <div className="flex items-center flex-grow min-w-0 mr-3">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted mr-3" />
                 <div className="min-w-0 flex-grow">
@@ -86,30 +101,37 @@ export default function SubwayLines({ stationId, direction, lines, title, onStat
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold truncate pr-2">{title}</h3>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleRefresh}
           disabled={refreshing || loading}
           className="flex items-center gap-1 shrink-0"
           aria-label={refreshing ? "Refreshing" : "Refresh"}
         >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+          <RefreshCw
+            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+          />
+          <span className="hidden sm:inline">
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </span>
         </Button>
       </div>
 
       {refreshing ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="w-full h-16 rounded-md border bg-background p-4 flex items-center justify-between animate-pulse">
+            <div
+              key={i}
+              className="w-full h-16 rounded-md border bg-background p-4 flex items-center justify-between animate-pulse"
+            >
               <div className="flex items-center flex-grow min-w-0 mr-3">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted mr-3" />
                 <div className="min-w-0 flex-grow">
@@ -126,18 +148,20 @@ export default function SubwayLines({ stationId, direction, lines, title, onStat
       ) : arrivals.length > 0 ? (
         <div className="space-y-3">
           {arrivals.map((arrival) => (
-            <SubwayTrain 
-              key={arrival.id} 
-              arrival={arrival} 
+            <SubwayTrain
+              key={arrival.id}
+              arrival={arrival}
               onStationSelect={onStationSelect}
             />
           ))}
         </div>
       ) : (
         <div className="text-center py-4">
-          <p className="text-gray-500">No upcoming arrivals found for the selected lines.</p>
+          <p className="text-gray-500">
+            No upcoming arrivals found for the selected lines.
+          </p>
         </div>
       )}
     </div>
-  )
+  );
 }

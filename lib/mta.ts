@@ -1,15 +1,16 @@
-import * as GtfsRealtimeBindings from "gtfs-realtime-bindings"
-import { getStationName } from "./station-utils"
+import * as GtfsRealtimeBindings from "gtfs-realtime-bindings";
+import { getStationName } from "./station-utils";
 
 export interface Arrival {
-  id: string
-  line: string
-  time: Date
-  minutesAway: number
-  delayed: boolean
-  destination: string
-  tripId: string
-  stationName?: string
+  id: string;
+  line: string;
+  time: Date;
+  minutesAway: number;
+  delayed: boolean;
+  destination: string;
+  tripId: string;
+  isReroute?: boolean;
+  stationName?: string;
 }
 
 // Station IDs for reference:
@@ -22,11 +23,12 @@ const FEED_URLS = {
   ACE: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",
   BDFM: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm",
   NQRW: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",
-  "1234567": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",
+  "1234567":
+    "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",
   JZ: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz",
   G: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g",
   L: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",
-}
+};
 
 // Map of line to feed URL
 const LINE_TO_FEED: Record<string, string> = {
@@ -67,9 +69,9 @@ const LINE_TO_FEED: Record<string, string> = {
   "726": FEED_URLS["1234567"], // 7 train
   "901": FEED_URLS["1234567"], // 9 train (if it exists)
   "902": FEED_URLS["1234567"], // Grand Central Shuttle
-  "SI": FEED_URLS["1234567"], // Staten Island Railway
+  SI: FEED_URLS["1234567"], // Staten Island Railway
   // Add more lines as needed
-}
+};
 
 // Function to get the feed URL for a line, with fallback for numeric codes
 export function getFeedUrlForLine(line: string): string | undefined {
@@ -77,24 +79,24 @@ export function getFeedUrlForLine(line: string): string | undefined {
   if (LINE_TO_FEED[line]) {
     return LINE_TO_FEED[line];
   }
-  
+
   // For numeric codes, try to determine the appropriate feed
   // MTA numeric codes: 1xx = 1 train, 2xx = 2 train, etc.
   if (/^\d+$/.test(line)) {
     const firstDigit = line.charAt(0);
-    
+
     // For lines 1-7, use the 1234567 feed
-    if (['1', '2', '3', '4', '5', '6', '7'].includes(firstDigit)) {
+    if (["1", "2", "3", "4", "5", "6", "7"].includes(firstDigit)) {
       return FEED_URLS["1234567"];
     }
-    
+
     // For other numeric codes, make a best guess based on first digit
-    if (firstDigit === '9') {
+    if (firstDigit === "9") {
       // Shuttles and special services often start with 9
       return FEED_URLS["1234567"];
     }
   }
-  
+
   // Default to returning undefined if we can't determine the feed
   console.warn(`Could not determine feed URL for line: ${line}`);
   return undefined;
@@ -102,109 +104,141 @@ export function getFeedUrlForLine(line: string): string | undefined {
 
 export async function fetchFeed(url: string): Promise<any> {
   try {
-    console.log("Fetching MTA feed from:", url);
+    //console.log("Fetching MTA feed from:", url);
     // Include MTA API key if provided in environment
     const headers: Record<string, string> = {
-      'Accept': 'application/x-protobuf',
-      'User-Agent': 'personal-subway-tracker/1.0.0'
-    }
+      Accept: "application/x-protobuf",
+      "User-Agent": "personal-subway-tracker/1.0.0",
+    };
     if (process.env.MTA_API_KEY) {
-      headers['x-api-key'] = process.env.MTA_API_KEY
+      headers["x-api-key"] = process.env.MTA_API_KEY;
     }
-    
-    console.log("Fetch request starting with headers:", JSON.stringify(headers));
+
+    // console.log(
+    //   "Fetch request starting with headers:",
+    //   JSON.stringify(headers)
+    // );
     const response = await fetch(url, {
       next: { revalidate: 30 }, // Revalidate every 30 seconds
       headers,
-    })
+    });
 
-    console.log("Fetch response status:", response.status, response.statusText);
+    // console.log("Fetch response status:", response.status, response.statusText);
     if (!response.ok) {
-      throw new Error(`Failed to fetch MTA data: ${response.status} ${response.statusText}`)
+      throw new Error(
+        `Failed to fetch MTA data: ${response.status} ${response.statusText}`
+      );
     }
 
-    const buffer = await response.arrayBuffer()
-    console.log("Successfully fetched feed, buffer size:", buffer.byteLength);
-    
+    const buffer = await response.arrayBuffer();
+    // console.log("Successfully fetched feed, buffer size:", buffer.byteLength);
+
     try {
-      const decoded = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer))
-      console.log("Successfully decoded feed, entity count:", decoded.entity?.length || 0);
+      const decoded = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
+        new Uint8Array(buffer)
+      );
+      // console.log(
+      //   "Successfully decoded feed, entity count:",
+      //   decoded.entity?.length || 0
+      // );
       return decoded;
     } catch (decodeError) {
       console.error("Error decoding feed:", decodeError);
       throw decodeError;
     }
   } catch (error) {
-    console.error("Error fetching or parsing feed:", error)
-    throw error
+    console.error("Error fetching or parsing feed:", error);
+    throw error;
   }
 }
 
 export async function getAvailableLines(
   stationId: string,
   direction: "N" | "S",
-  possibleLines: string[],
+  possibleLines: string[]
 ): Promise<string[]> {
   try {
-    const allArrivals = await getSubwayArrivals(stationId, direction, possibleLines)
-    
+    const allArrivals = await getSubwayArrivals(
+      stationId,
+      direction,
+      possibleLines
+    );
+
     // Get unique lines that have arrivals
-    const availableLines = [...new Set(allArrivals.map(arrival => {
-      // Normalize GS to S for consistency in the UI
-      return arrival.line === 'GS' ? 'S' : arrival.line
-    }))]
-    return availableLines
+    const availableLines = [
+      ...new Set(
+        allArrivals.map((arrival) => {
+          // Normalize GS to S for consistency in the UI
+          return arrival.line === "GS" ? "S" : arrival.line;
+        })
+      ),
+    ];
+    return availableLines;
   } catch (error) {
-    console.error('Error fetching available lines:', error)
-    return []
+    console.error("Error fetching available lines:", error);
+    return [];
   }
 }
 
-export async function getSubwayArrivals(stationId: string, direction: "N" | "S", lines: string[]): Promise<Arrival[]> {
+export async function getSubwayArrivals(
+  stationId: string,
+  direction: "N" | "S",
+  lines: string[]
+): Promise<Arrival[]> {
   try {
-    console.log(`Getting subway arrivals for station ${stationId}, direction ${direction}, lines:`, lines);
-    
+    console.log(
+      `Getting subway arrivals for station ${stationId}, direction ${direction}`
+    );
+
     // Determine which feeds to fetch based on the lines, using the new function
-    const feedUrls = [...new Set(lines.map(line => getFeedUrlForLine(line)))].filter(Boolean) as string[]
-    
+    // const feedUrls = [
+    //   ...new Set(lines.map((line) => getFeedUrlForLine(line))),
+    // ].filter(Boolean) as string[];
+
+    const feedUrls = Object.values(FEED_URLS);
+
     if (feedUrls.length === 0) {
-      throw new Error(`No feed URLs found for lines: ${lines.join(', ')}`)
+      throw new Error(`No feed URLs found for lines: ${lines.join(", ")}`);
     }
-    
-    console.log(`Found ${feedUrls.length} feed URLs:`, feedUrls);
-    
+
+    //console.log(`Found ${feedUrls.length} feed URLs:`, feedUrls);
+
     // Fetch all required feeds
-    const feedPromises = feedUrls.map(url => fetchFeed(url))
-    const feeds = await Promise.all(feedPromises)
-    
+    const feedPromises = feedUrls.map((url) => fetchFeed(url));
+    const feeds = await Promise.all(feedPromises);
+
     console.log(`Successfully fetched ${feeds.length} feeds`);
-    
-    const arrivals: Arrival[] = []
-    const now = Math.floor(Date.now() / 1000)
-    
+
+    const arrivals: Arrival[] = [];
+    const now = Math.floor(Date.now() / 1000);
+
     for (const feed of feeds) {
       if (!feed.entity || feed.entity.length === 0) {
         console.log("Feed has no entities");
         continue;
       }
-      
+
       console.log(`Processing feed with ${feed.entity.length} entities`);
       let matchCount = 0;
-      
+
       for (const entity of feed.entity) {
         if (entity.tripUpdate && entity.tripUpdate.trip) {
-          const trip = entity.tripUpdate.trip
-          const routeId = trip.routeId
-          
-          // Skip if not one of the requested lines
-          if (!lines.includes(routeId) && !(routeId === 'GS' && lines.includes('S'))) continue
-          
+          const trip = entity.tripUpdate.trip;
+          const routeId = trip.routeId;
+
+          // previously skipped if not one of the requested lines
+          const isExpectedRoute =
+            lines.includes(routeId) ||
+            (routeId === "GS" && lines.includes("S"));
+
+          // previously skipped if not one of the requested lines
+
           // Check if this trip has a stop at our station in the right direction
           if (entity.tripUpdate.stopTimeUpdate) {
             // Find the last stop to use as destination
             let lastStop = null;
-            let lastStopId = '';
-            
+            let lastStopId = "";
+
             // First, find the last stop in this trip
             for (const update of entity.tripUpdate.stopTimeUpdate) {
               if (update.arrival && update.arrival.time) {
@@ -212,143 +246,172 @@ export async function getSubwayArrivals(stationId: string, direction: "N" | "S",
                 lastStopId = update.stopId.slice(0, -1); // Remove direction character
               }
             }
-            
+
             // Now find our station stop
             for (const update of entity.tripUpdate.stopTimeUpdate) {
               const stopId = update.stopId;
               const expectedStopId = `${stationId}${direction}`;
-              
+
               if (stopId === expectedStopId) {
                 matchCount++;
                 // Use arrival time or fallback to departure time for the station
-                let timeSec: number | undefined
-                let delaySec: number | undefined
-                
+                let timeSec: number | undefined;
+                let delaySec: number | undefined;
+
                 if (update.arrival) {
-                  timeSec = parseInt(update.arrival.time)
-                  delaySec = update.arrival.delay
+                  timeSec = parseInt(update.arrival.time);
+                  delaySec = update.arrival.delay;
                 } else if (update.departure) {
-                  timeSec = parseInt(update.departure.time)
-                  delaySec = update.departure.delay
+                  timeSec = parseInt(update.departure.time);
+                  delaySec = update.departure.delay;
                 }
-                
+
                 if (timeSec) {
-                  const minutesAway = Math.floor((timeSec - now) / 60)
-                  
+                  const minutesAway = Math.floor((timeSec - now) / 60);
+
                   // Include trains 0–60 minutes away
                   if (minutesAway >= 0 && minutesAway <= 60) {
-                    const arrivalTime = new Date(timeSec * 1000)
+                    const arrivalTime = new Date(timeSec * 1000);
                     const destination = lastStopId
-                      ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown'
-                      : trip.tripHeadsign || 'Unknown'
-                    console.log(`Found arrival: Line ${routeId}, ${minutesAway} minutes away, destination: ${destination}`)
+                      ? getStationName(lastStopId) ||
+                        trip.tripHeadsign ||
+                        "Unknown"
+                      : trip.tripHeadsign || "Unknown";
+                    console.log(
+                      `Found arrival: Line ${routeId}, ${minutesAway} minutes away, destination: ${destination}`
+                    );
                     arrivals.push({
                       id: `${trip.tripId}-${stationId}`,
-                      line: routeId === 'GS' ? 'S' : routeId,
+                      line: routeId === "GS" ? "S" : routeId,
                       time: arrivalTime,
                       minutesAway,
                       delayed: delaySec ? delaySec > 300 : false,
                       destination,
                       tripId: trip.tripId,
+                      isReroute: !isExpectedRoute,
                       stationName: getStationName(stationId),
-                    })
+                    });
                   } else {
-                    console.log(`Skipping arrival: Line ${routeId}, ${minutesAway} minutes away (outside 0-60 minute window)`)  
+                    console.log(
+                      `Skipping arrival: Line ${routeId}, ${minutesAway} minutes away (outside 0-60 minute window)`
+                    );
                   }
                 }
               }
             }
           } else {
-            console.log(`Trip ${trip.tripId} for line ${routeId} has no stopTimeUpdate`);
+            console.log(
+              `Trip ${trip.tripId} for line ${routeId} has no stopTimeUpdate`
+            );
           }
         }
       }
-      
-      console.log(`Found ${matchCount} matching stops for station ${stationId} in this feed`);
+
+      console.log(
+        `Found ${matchCount} matching stops for station ${stationId} in feed`
+      );
     }
-    
+
     console.log(`Total arrivals found: ${arrivals.length}`);
-    return arrivals.sort((a, b) => a.minutesAway - b.minutesAway)
+    return arrivals.sort((a, b) => a.minutesAway - b.minutesAway);
   } catch (error) {
-    console.error('Error fetching subway arrivals:', error)
+    console.error("Error fetching subway arrivals:", error);
     // Return empty array on error
-    return []
+    return [];
   }
 }
 
-export async function getDestinationTimes(tripId: string, line: string): Promise<Arrival[]> {
+export async function getDestinationTimes(
+  tripId: string,
+  line: string
+): Promise<Arrival[]> {
   try {
     // Handle both S and GS for shuttle line
-    const feedUrl = getFeedUrlForLine(line === 'GS' ? 'S' : line)
+    const feedUrl = getFeedUrlForLine(line === "GS" ? "S" : line);
     if (!feedUrl) {
-      throw new Error(`No feed URL found for line: ${line}`)
+      throw new Error(`No feed URL found for line: ${line}`);
     }
-    
-    const feed = await fetchFeed(feedUrl)
-    const destinations: Arrival[] = []
-    const now = Math.floor(Date.now() / 1000)
-    
+
+    const feed = await fetchFeed(feedUrl);
+    const destinations: Arrival[] = [];
+    const now = Math.floor(Date.now() / 1000);
+
     for (const entity of feed.entity) {
-      if (entity.tripUpdate && entity.tripUpdate.trip && entity.tripUpdate.trip.tripId === tripId) {
+      if (
+        entity.tripUpdate &&
+        entity.tripUpdate.trip &&
+        entity.tripUpdate.trip.tripId === tripId
+      ) {
         // Found our trip
-        const trip = entity.tripUpdate.trip
-        const routeId = trip.routeId === 'GS' ? 'S' : trip.routeId // Normalize GS to S
-        
+        const trip = entity.tripUpdate.trip;
+        const routeId = trip.routeId === "GS" ? "S" : trip.routeId; // Normalize GS to S
+
         // Find the last stop to use as destination
-        let lastStopId = '';
-        
+        let lastStopId = "";
+
         // First, find the last stop in this trip
-        if (entity.tripUpdate.stopTimeUpdate && entity.tripUpdate.stopTimeUpdate.length > 0) {
-          const lastUpdate = entity.tripUpdate.stopTimeUpdate[entity.tripUpdate.stopTimeUpdate.length - 1];
+        if (
+          entity.tripUpdate.stopTimeUpdate &&
+          entity.tripUpdate.stopTimeUpdate.length > 0
+        ) {
+          const lastUpdate =
+            entity.tripUpdate.stopTimeUpdate[
+              entity.tripUpdate.stopTimeUpdate.length - 1
+            ];
           if (lastUpdate) {
             lastStopId = lastUpdate.stopId.slice(0, -1); // Remove direction character
           }
         }
-        
+
         // Get the destination from the last stop or fall back to tripHeadsign
-        const finalDestination = lastStopId 
-          ? getStationName(lastStopId) || trip.tripHeadsign || 'Unknown' 
-          : trip.tripHeadsign || 'Unknown';
-        
+        const finalDestination = lastStopId
+          ? getStationName(lastStopId) || trip.tripHeadsign || "Unknown"
+          : trip.tripHeadsign || "Unknown";
+
         if (entity.tripUpdate.stopTimeUpdate) {
           for (const update of entity.tripUpdate.stopTimeUpdate) {
             if (update.arrival && update.arrival.time) {
-              const arrivalTimestamp = update.arrival.time.low || update.arrival.time
-              const arrivalTime = new Date(arrivalTimestamp * 1000)
-              
+              const arrivalTimestamp =
+                update.arrival.time.low || update.arrival.time;
+              const arrivalTime = new Date(arrivalTimestamp * 1000);
+
               // Ensure we have valid timestamps before calculating minutes away
               if (isNaN(arrivalTimestamp) || arrivalTimestamp <= 0) {
-                console.log(`Invalid arrival time for line ${line}: ${arrivalTimestamp}`)
-                continue
+                console.log(
+                  `Invalid arrival time for line ${line}: ${arrivalTimestamp}`
+                );
+                continue;
               }
-              
-              const minutesAway = Math.floor((arrivalTimestamp - now) / 60)
-              
+
+              const minutesAway = Math.floor((arrivalTimestamp - now) / 60);
+
               // Include current station (minutesAway >= 0) rather than only future stations
               if (minutesAway >= 0) {
-                const stationId = update.stopId.slice(0, -1) // Remove direction character
-                
+                const stationId = update.stopId.slice(0, -1); // Remove direction character
+
                 destinations.push({
                   id: `${tripId}-${stationId}`,
                   line,
                   time: arrivalTime,
                   minutesAway,
-                  delayed: update.arrival.delay ? update.arrival.delay > 300 : false,
+                  delayed: update.arrival.delay
+                    ? update.arrival.delay > 300
+                    : false,
                   destination: finalDestination,
                   tripId,
                   stationName: getStationName(stationId), // Use our utility function to get the station name
-                })
+                });
               }
             }
           }
         }
-        break
+        break;
       }
     }
-    
-    return destinations.sort((a, b) => a.minutesAway - b.minutesAway)
+
+    return destinations.sort((a, b) => a.minutesAway - b.minutesAway);
   } catch (error) {
-    console.error('Error fetching destination times:', error)
-    return []
+    console.error("Error fetching destination times:", error);
+    return [];
   }
 }

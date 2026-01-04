@@ -1,37 +1,41 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Search } from "lucide-react"
-import { saveUserStations, saveUserToLocalStorage, getUserByPhone } from "@/lib/supabase"
-import stationData from "@/lib/station-data.json"
+import React, { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search } from "lucide-react";
+import {
+  saveUserStations,
+  saveUserToLocalStorage,
+  getUserByPhone,
+} from "@/lib/supabase";
+import stationData from "@/lib/station-data.json";
 
 // Import the getLineColor function from the main station selector
-import { getLineColor, shouldUseBlackText } from "@/lib/line-info"
+import { getLineColor, shouldUseBlackText } from "@/lib/line-info";
 
 interface StationSelectorProps {
-  userId: string
-  phoneNumber: string
-  initialStations?: string[]
-  onComplete: () => void
-  onBack?: () => void
-  isSettings?: boolean
+  userId: string;
+  phoneNumber: string;
+  initialStations?: string[];
+  onComplete: () => void;
+  onBack?: () => void;
+  isSettings?: boolean;
 }
 
 // Define a simple station type
 // Station object including optional typical trains and coordinates
 type Station = {
-  id: string
-  name: string
-  borough: string
-  routes?: string            // space-separated list of typical trains (from index 16 in JSON)
-  latitude?: number          // GTFS latitude (position 11)
-  longitude?: number         // GTFS longitude (position 12)
-}
+  id: string;
+  name: string;
+  borough: string;
+  routes?: string; // space-separated list of typical trains (from index 16 in JSON)
+  latitude?: number; // GTFS latitude (position 11)
+  longitude?: number; // GTFS longitude (position 12)
+};
 
 // Pre-define popular Manhattan stations (will be enriched with routes)
 const POPULAR_MANHATTAN_STATIONS: Station[] = [
@@ -65,37 +69,39 @@ const POPULAR_MANHATTAN_STATIONS: Station[] = [
   { id: "R14", name: "57 St-7 Av", borough: "Manhattan" },
   { id: "D15", name: "47-50 Sts-Rockefeller Ctr", borough: "Manhattan" },
   { id: "R17", name: "34 St-Herald Sq", borough: "Manhattan" },
-]
+];
 
 // Helper to look up daytime routes (typical trains) by GTFS Stop ID at JSON index 16
 function getRoutesForStop(gtfsStopId: string): string {
-  if (!stationData || !Array.isArray(stationData.data)) return ''
+  if (!stationData || !Array.isArray(stationData.data)) return "";
   for (const row of stationData.data) {
     if (row[8] === gtfsStopId) {
-      return (row[16] ?? '').toString()
+      return (row[16] ?? "").toString();
     }
   }
-  return ''
+  return "";
 }
 
 // Enrich popular stations with their typical train routes
-const ENRICHED_POPULAR_STATIONS: Station[] = POPULAR_MANHATTAN_STATIONS.map(s => ({
-  ...s,
-  routes: getRoutesForStop(s.id)
-}))
+const ENRICHED_POPULAR_STATIONS: Station[] = POPULAR_MANHATTAN_STATIONS.map(
+  (s) => ({
+    ...s,
+    routes: getRoutesForStop(s.id),
+  })
+);
 // Helper to build a Station object (with coords) from the GTFS Stop ID by looking up in stationData
 function getStationById(gtfsStopId: string): Station | null {
-  if (!stationData || !Array.isArray(stationData.data)) return null
+  if (!stationData || !Array.isArray(stationData.data)) return null;
   for (const row of stationData.data) {
     if (row[8] === gtfsStopId) {
-      const id = row[8]?.toString() || gtfsStopId
-      const name = (row[13] ?? '').toString()
-      const borough = (row[14] ?? '').toString()
+      const id = row[8]?.toString() || gtfsStopId;
+      const name = (row[13] ?? "").toString();
+      const borough = (row[14] ?? "").toString();
       // GTFS data: latitude and longitude are at indices 18 and 19 respectively
-      const latRaw = row[18]
-      const lonRaw = row[19]
-      const latitude = latRaw != null ? Number(latRaw) : undefined
-      const longitude = lonRaw != null ? Number(lonRaw) : undefined
+      const latRaw = row[18];
+      const lonRaw = row[19];
+      const latitude = latRaw != null ? Number(latRaw) : undefined;
+      const longitude = lonRaw != null ? Number(lonRaw) : undefined;
       return {
         id,
         name,
@@ -103,10 +109,10 @@ function getStationById(gtfsStopId: string): Station | null {
         routes: getRoutesForStop(id),
         latitude,
         longitude,
-      }
+      };
     }
   }
-  return null
+  return null;
 }
 
 export default function StationSelector({
@@ -119,188 +125,205 @@ export default function StationSelector({
 }: StationSelectorProps) {
   // Initialize station list: saved stations first, then popular ones
   const [stations, setStations] = useState<Station[]>(() => {
-    const uniqueIds = Array.from(new Set(initialStations))
+    const uniqueIds = Array.from(new Set(initialStations));
     // Build Station objects for saved stations
     const selectedObjs: Station[] = uniqueIds
-      .map(id => getStationById(id))
-      .filter((s): s is Station => s !== null)
+      .map((id) => getStationById(id))
+      .filter((s): s is Station => s !== null);
     // Append popular stations not already selected
-    const rest = ENRICHED_POPULAR_STATIONS.filter(s => !uniqueIds.includes(s.id))
-    return [...selectedObjs, ...rest]
-  })
-  const [selectedStations, setSelectedStations] = useState<string[]>(initialStations)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
-  const [error, setError] = useState("")
-  const searchInputRef = useRef<HTMLInputElement>(null)
+    const rest = ENRICHED_POPULAR_STATIONS.filter(
+      (s) => !uniqueIds.includes(s.id)
+    );
+    return [...selectedObjs, ...rest];
+  });
+  const [selectedStations, setSelectedStations] =
+    useState<string[]>(initialStations);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Search stations in the JSON data (filters stations and prioritizes selected)
   const searchStations = () => {
     if (!searchQuery.trim()) {
       // Empty search: revert to saved stations + popular list
-      const uniqueIds = Array.from(new Set(selectedStations))
+      const uniqueIds = Array.from(new Set(selectedStations));
       const selectedObjs: Station[] = uniqueIds
-        .map(id => getStationById(id))
-        .filter((s): s is Station => s !== null)
-      const rest = ENRICHED_POPULAR_STATIONS.filter(s => !uniqueIds.includes(s.id))
-      setStations([...selectedObjs, ...rest])
-      return
+        .map((id) => getStationById(id))
+        .filter((s): s is Station => s !== null);
+      const rest = ENRICHED_POPULAR_STATIONS.filter(
+        (s) => !uniqueIds.includes(s.id)
+      );
+      setStations([...selectedObjs, ...rest]);
+      return;
     }
 
-    setIsSearching(true)
+    setIsSearching(true);
 
     try {
-      console.log(`Searching for stations matching "${searchQuery}"...`)
+      console.log(`Searching for stations matching "${searchQuery}"...`);
 
-      if (!stationData || !stationData.data || !Array.isArray(stationData.data)) {
-        console.error("Station data is not in the expected format:", stationData)
-        setIsSearching(false)
-        return
+      if (
+        !stationData ||
+        !stationData.data ||
+        !Array.isArray(stationData.data)
+      ) {
+        console.error(
+          "Station data is not in the expected format:",
+          stationData
+        );
+        setIsSearching(false);
+        return;
       }
 
-      // Log a sample station to verify structure
-      if (stationData.data.length > 0) {
-        console.log("Sample station structure:", stationData.data[0])
-      }
+      // // Log a sample station to verify structure
+      // if (stationData.data.length > 0) {
+      //   console.log("Sample station structure:", stationData.data[0])
+      // }
 
-      const query = searchQuery.toLowerCase().trim()
-      const matchingStations: Station[] = []
-      const stationMap = new Map<string, boolean>() // To prevent duplicates by unique stop ID
+      const query = searchQuery.toLowerCase().trim();
+      const matchingStations: Station[] = [];
+      const stationMap = new Map<string, boolean>(); // To prevent duplicates by unique stop ID
 
       stationData.data.forEach((station) => {
-        if (!Array.isArray(station) || station.length < 10) return
+        if (!Array.isArray(station) || station.length < 10) return;
 
         // Based on the Socrata JSON structure, use these indices:
         // [8] = GTFS Stop ID, [13] = Stop Name, [14] = Borough
-        const gtfsStopId = (station[8] ?? '').toString()
-        const stopName = (station[13] ?? '').toString()
-        const borough = (station[14] ?? '').toString()
+        const gtfsStopId = (station[8] ?? "").toString();
+        const stopName = (station[13] ?? "").toString();
+        const borough = (station[14] ?? "").toString();
 
-        if (!gtfsStopId || !stopName) return
+        if (!gtfsStopId || !stopName) return;
 
         // Only search by station name as requested
         if (stopName.toLowerCase().includes(query)) {
           // Use unique GTFS Stop ID as key to deduplicate
-          const key = gtfsStopId
+          const key = gtfsStopId;
 
           if (!stationMap.has(key)) {
-            stationMap.set(key, true)
+            stationMap.set(key, true);
             matchingStations.push({
               id: gtfsStopId,
               name: stopName,
               borough: borough || "",
               // include typical trains from index 16
               routes: getRoutesForStop(gtfsStopId),
-            })
+            });
           }
         } else {
           // Check if query matches any of the train lines that serve this station
-          const routes = getRoutesForStop(gtfsStopId)
+          const routes = getRoutesForStop(gtfsStopId);
           if (routes) {
             // Extract individual train lines
-            const trainLines = routes.split(' ')
-            
+            const trainLines = routes.split(" ");
+
             // Search for individual lines or consecutive letter matches
-            const matchesTrainLine = trainLines.some(line => {
+            const matchesTrainLine = trainLines.some((line) => {
               // Exact line match (e.g., "A" or "F")
-              if (line.toLowerCase() === query) return true
-              
+              if (line.toLowerCase() === query) return true;
+
               // Multiple consecutive lines (e.g., "ace" matches A, C, E lines)
               if (query.length > 1) {
-                return query.split('').every(letter => 
-                  trainLines.some(line => line.toLowerCase() === letter)
-                )
+                return query
+                  .split("")
+                  .every((letter) =>
+                    trainLines.some((line) => line.toLowerCase() === letter)
+                  );
               }
-              
-              return false
-            })
-            
+
+              return false;
+            });
+
             if (matchesTrainLine) {
-              const key = gtfsStopId
+              const key = gtfsStopId;
               if (!stationMap.has(key)) {
-                stationMap.set(key, true)
+                stationMap.set(key, true);
                 matchingStations.push({
                   id: gtfsStopId,
                   name: stopName,
                   borough: borough || "",
                   routes: routes,
-                })
+                });
               }
             }
           }
         }
-      })
+      });
 
       // Sort by borough then name, then prioritize selected stations
       matchingStations.sort((a, b) => {
         if (a.borough !== b.borough) {
-          return a.borough.localeCompare(b.borough)
+          return a.borough.localeCompare(b.borough);
         }
-        return a.name.localeCompare(b.name)
-      })
+        return a.name.localeCompare(b.name);
+      });
       // Prioritize stations already selected
-      const selectedMatches = matchingStations.filter(s => selectedStations.includes(s.id))
-      const otherMatches = matchingStations.filter(s => !selectedStations.includes(s.id))
-      const sorted = [...selectedMatches, ...otherMatches]
-      console.log(`Found ${sorted.length} stations matching "${searchQuery}"`)
-      setStations(sorted)
+      const selectedMatches = matchingStations.filter((s) =>
+        selectedStations.includes(s.id)
+      );
+      const otherMatches = matchingStations.filter(
+        (s) => !selectedStations.includes(s.id)
+      );
+      const sorted = [...selectedMatches, ...otherMatches];
+      setStations(sorted);
     } catch (error) {
-      console.error("Error searching stations:", error)
+      console.error("Error searching stations:", error);
     } finally {
-      setIsSearching(false)
+      setIsSearching(false);
     }
-  }
+  };
   // Dynamically filter as the user types or selections change
   useEffect(() => {
-    searchStations()
-  }, [searchQuery, selectedStations])
+    searchStations();
+  }, [searchQuery, selectedStations]);
 
   const handleToggleStation = (stationId: string) => {
     setSelectedStations((prev) => {
       if (prev.includes(stationId)) {
-        return prev.filter((id) => id !== stationId)
+        return prev.filter((id) => id !== stationId);
       } else {
-        return [...prev, stationId]
+        return [...prev, stationId];
       }
-    })
-  }
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (selectedStations.length === 0) {
-      setError("Please select at least one station")
-      return
+      setError("Please select at least one station");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // Save selected stations to database
-      const success = await saveUserStations(userId, selectedStations)
+      const success = await saveUserStations(userId, selectedStations);
 
       if (success) {
         // Get updated user data
-        const user = await getUserByPhone(phoneNumber)
+        const user = await getUserByPhone(phoneNumber);
 
         if (user) {
           // Save to local storage
-          saveUserToLocalStorage(user)
-          onComplete()
+          saveUserToLocalStorage(user);
+          onComplete();
         } else {
-          setError("Failed to retrieve user data")
+          setError("Failed to retrieve user data");
         }
       } else {
-        setError("Failed to save your station preferences")
+        setError("Failed to save your station preferences");
       }
     } catch (error) {
-      console.error("Error saving stations:", error)
-      setError("An error occurred. Please try again.")
+      console.error("Error saving stations:", error);
+      setError("An error occurred. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -317,8 +340,8 @@ export default function StationSelector({
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault()
-                  searchStations()
+                  e.preventDefault();
+                  searchStations();
                 }
               }}
               autoComplete="off"
@@ -330,8 +353,8 @@ export default function StationSelector({
             size="icon"
             disabled={isSearching}
             onClick={(e) => {
-              e.preventDefault()
-              searchStations()
+              e.preventDefault();
+              searchStations();
             }}
           >
             <Search className="h-4 w-4" />
@@ -341,8 +364,8 @@ export default function StationSelector({
           {isSearching
             ? "Searching stations..."
             : searchQuery
-              ? `${stations.length} stations found matching "${searchQuery}"`
-              : "Showing your saved stations followed by popular stations. Search to see more."}
+            ? `${stations.length} stations found matching "${searchQuery}"`
+            : "Showing your saved stations followed by popular stations. Search to see more."}
         </p>
       </div>
 
@@ -352,32 +375,45 @@ export default function StationSelector({
             <div className="space-y-2">
               {stations.length > 0 ? (
                 stations.map((station, index) => (
-                  <div key={`${station.id}-${index}`} className="flex items-start space-x-2">
+                  <div
+                    key={`${station.id}-${index}`}
+                    className="flex items-start space-x-2"
+                  >
                     <Checkbox
                       id={`station-${station.id}-${index}`}
                       checked={selectedStations.includes(station.id)}
                       onCheckedChange={() => handleToggleStation(station.id)}
                     />
                     <div className="flex justify-between items-center w-full">
-                      <Label htmlFor={`station-${station.id}-${index}`} className="text-sm cursor-pointer">
+                      <Label
+                        htmlFor={`station-${station.id}-${index}`}
+                        className="text-sm cursor-pointer"
+                      >
                         <span className="font-medium">{station.name}</span>
                       </Label>
                       {station.routes && (
                         <div className="flex items-center gap-1 ml-2">
-                          {station.routes.split(' ').slice(0, 5).map((line) => (
-                            <span
-                              key={line}
-                              className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full"
-                              style={{
-                                backgroundColor: getLineColor(line),
-                                color: shouldUseBlackText(line) ? 'black' : 'white'
-                              }}
-                            >
-                              {line}
+                          {station.routes
+                            .split(" ")
+                            .slice(0, 5)
+                            .map((line) => (
+                              <span
+                                key={line}
+                                className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full"
+                                style={{
+                                  backgroundColor: getLineColor(line),
+                                  color: shouldUseBlackText(line)
+                                    ? "black"
+                                    : "white",
+                                }}
+                              >
+                                {line}
+                              </span>
+                            ))}
+                          {station.routes.split(" ").length > 5 && (
+                            <span className="text-xs text-gray-600">
+                              +{station.routes.split(" ").length - 5}
                             </span>
-                          ))}
-                          {station.routes.split(' ').length > 5 && (
-                            <span className="text-xs text-gray-600">+{station.routes.split(' ').length - 5}</span>
                           )}
                         </div>
                       )}
@@ -389,8 +425,8 @@ export default function StationSelector({
                   {isSearching
                     ? "Searching stations..."
                     : searchQuery
-                      ? `No stations found matching "${searchQuery}"`
-                      : "No stations available"}
+                    ? `No stations found matching "${searchQuery}"`
+                    : "No stations available"}
                 </p>
               )}
             </div>
@@ -400,21 +436,31 @@ export default function StationSelector({
       </div>
 
       <div className="text-sm text-gray-500">
-        Selected {selectedStations.length} station{selectedStations.length !== 1 ? "s" : ""}
+        Selected {selectedStations.length} station
+        {selectedStations.length !== 1 ? "s" : ""}
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="flex space-x-2">
         {onBack && (
-          <Button type="button" variant="outline" onClick={onBack} className="flex-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onBack}
+            className="flex-1"
+          >
             Back
           </Button>
         )}
         <Button type="submit" className="flex-1" disabled={isLoading}>
-          {isLoading ? "Saving..." : isSettings ? "Save Changes" : "Complete Setup"}
+          {isLoading
+            ? "Saving..."
+            : isSettings
+            ? "Save Changes"
+            : "Complete Setup"}
         </Button>
       </div>
     </form>
-  )
+  );
 }
