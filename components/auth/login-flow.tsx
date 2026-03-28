@@ -6,7 +6,6 @@ import PhoneInput from "@/components/auth/phone-input"
 import NameInput from "@/components/auth/name-input"
 import StationSelector from "@/components/auth/station-selector"
 import { getCurrentSessionUser, getUserStations } from "@/lib/supabase"
-import { debugStationData } from "@/lib/debug-stations"
 
 interface LoginFlowProps {
   onComplete: () => void
@@ -22,9 +21,6 @@ export default function LoginFlow({ onComplete, onGuestMode }: LoginFlowProps) {
   const [userStations, setUserStations] = useState<string[]>([])
 
   useEffect(() => {
-    // Debug station data
-    debugStationData()
-
     // Check if user is already logged in
     const checkSession = async () => {
       const user = await getCurrentSessionUser()
