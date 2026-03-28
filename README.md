@@ -45,7 +45,8 @@
  Create a `.env.local` file in the project root with:
  ```bash
  NEXT_PUBLIC_SUPABASE_URL=<your Supabase project URL>
- SUPABASE_SERVICE_ROLE_KEY=<your Supabase Service Role Key>
+ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your Supabase anon key>
+ SUPABASE_SERVICE_ROLE_KEY=<your Supabase service role key>
  ```
 
  ### Installation
