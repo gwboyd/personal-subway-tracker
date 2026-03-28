@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import StationSelector from "@/components/auth/station-selector"
-import { getUserFromLocalStorage, clearUserFromLocalStorage, getUserStations } from "@/lib/supabase"
+import { getCurrentSessionUser, getUserStations, logoutCurrentSession } from "@/lib/supabase"
 import SubwayLoading from "@/components/subway-loading"
 
 
@@ -18,7 +18,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadUserData = async () => {
-      const userData = getUserFromLocalStorage()
+      const userData = await getCurrentSessionUser()
 
       if (!userData) {
         // Redirect to home if not logged in
@@ -34,11 +34,11 @@ export default function SettingsPage() {
       setLoading(false)
     }
 
-    loadUserData()
+    void loadUserData()
   }, [router])
 
-  const handleLogout = () => {
-    clearUserFromLocalStorage()
+  const handleLogout = async () => {
+    await logoutCurrentSession()
     router.push("/")
   }
 

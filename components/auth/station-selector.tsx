@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search } from "lucide-react";
 import {
   saveUserStations,
-  saveUserToLocalStorage,
+  getCurrentSessionUser,
   getUserByPhone,
 } from "@/lib/supabase";
 import stationData from "@/lib/station-data.json";
@@ -305,11 +305,9 @@ export default function StationSelector({
 
       if (success) {
         // Get updated user data
-        const user = await getUserByPhone(phoneNumber);
+        const user = await getCurrentSessionUser();
 
         if (user) {
-          // Save to local storage
-          saveUserToLocalStorage(user);
           onComplete();
         } else {
           setError("Failed to retrieve user data");

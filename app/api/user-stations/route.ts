@@ -1,19 +1,46 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/server-supabase"
+import { createAuthenticatedServerSupabaseClient, getAuthenticatedSubwaySession } from "@/lib/server-supabase"
 
-const supabase = createServerSupabaseClient()
+export async function GET() {
+  try {
+    const session = await getAuthenticatedSubwaySession()
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const supabase = await createAuthenticatedServerSupabaseClient()
+    const { data, error } = await supabase.from("user_stations").select("station_id").eq("user_id", session.userId)
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to fetch user stations" }, { status: 500 })
+    }
+
+    return NextResponse.json(data.map((item) => item.station_id))
+  } catch (error) {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
 
 export async function POST(request: Request) {
   try {
-    const { userId, stationIds } = await request.json()
+    const session = await getAuthenticatedSubwaySession()
 
-    // Validate input
-    if (!userId || !stationIds || !Array.isArray(stationIds)) {
-      return NextResponse.json({ error: "User ID and station IDs array are required" }, { status: 400 })
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { stationIds } = await request.json()
+
+    // Validate input
+    if (!stationIds || !Array.isArray(stationIds)) {
+      return NextResponse.json({ error: "Station IDs array is required" }, { status: 400 })
+    }
+
+    const supabase = await createAuthenticatedServerSupabaseClient()
+
     // First delete existing stations
-    const { error: deleteError } = await supabase.from("user_stations").delete().eq("user_id", userId)
+    const { error: deleteError } = await supabase.from("user_stations").delete().eq("user_id", session.userId)
 
     if (deleteError) {
       console.error("Error deleting existing stations:", deleteError)
@@ -22,7 +49,7 @@ export async function POST(request: Request) {
 
     // Then insert new stations
     const stationsToInsert = stationIds.map((stationId) => ({
-      user_id: userId,
+      user_id: session.userId,
       station_id: stationId,
     }))
 

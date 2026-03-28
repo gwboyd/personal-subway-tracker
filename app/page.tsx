@@ -7,7 +7,7 @@ import SubwayLoading from "@/components/subway-loading"
 import LoginFlow from "@/components/auth/login-flow"
 import { Button } from "@/components/ui/button"
 import { Settings } from "lucide-react"
-import { getUserFromLocalStorage, getUserStations } from "@/lib/supabase"
+import { getCurrentSessionUser, getUserStations } from "@/lib/supabase"
 
 export default function Home() {
   const router = useRouter()
@@ -18,7 +18,7 @@ export default function Home() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const user = getUserFromLocalStorage()
+      const user = await getCurrentSessionUser()
 
       if (user) {
         setIsLoggedIn(true)
@@ -31,7 +31,7 @@ export default function Home() {
       setIsLoading(false)
     }
 
-    checkAuth()
+    void checkAuth()
   }, [])
 
   const handleLoginComplete = () => {

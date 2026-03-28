@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import PhoneInput from "@/components/auth/phone-input"
 import NameInput from "@/components/auth/name-input"
 import StationSelector from "@/components/auth/station-selector"
-import { getUserFromLocalStorage, getUserStations } from "@/lib/supabase"
+import { getCurrentSessionUser, getUserStations } from "@/lib/supabase"
 import { debugStationData } from "@/lib/debug-stations"
 
 interface LoginFlowProps {
@@ -26,14 +26,14 @@ export default function LoginFlow({ onComplete, onGuestMode }: LoginFlowProps) {
     debugStationData()
 
     // Check if user is already logged in
-    const checkLocalStorage = () => {
-      const user = getUserFromLocalStorage()
+    const checkSession = async () => {
+      const user = await getCurrentSessionUser()
       if (user) {
         onComplete()
       }
     }
 
-    checkLocalStorage()
+    void checkSession()
   }, [onComplete])
 
   const handleExistingUser = async (phone: string, id: string) => {

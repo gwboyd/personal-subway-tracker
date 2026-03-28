@@ -64,7 +64,6 @@ export async function saveUserStations(userId: string, stationIds: string[]) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        userId,
         stationIds,
       }),
     })
@@ -84,7 +83,7 @@ export async function saveUserStations(userId: string, stationIds: string[]) {
 
 export async function getUserStations(userId: string) {
   try {
-    const response = await fetch(`/api/user-stations/${userId}`)
+    const response = await fetch("/api/user-stations")
 
     if (!response.ok) {
       console.error("Error fetching user stations:", await response.text())
@@ -99,30 +98,30 @@ export async function getUserStations(userId: string) {
   }
 }
 
-// Local storage functions
-export function saveUserToLocalStorage(user: User) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("subway_user", JSON.stringify(user))
-  }
-}
+export async function getCurrentSessionUser() {
+  try {
+    const response = await fetch("/api/session", {
+      cache: "no-store",
+    })
 
-export function getUserFromLocalStorage(): User | null {
-  if (typeof window !== "undefined") {
-    const userJson = localStorage.getItem("subway_user")
-    if (userJson) {
-      try {
-        return JSON.parse(userJson)
-      } catch (error) {
-        console.error("Error parsing user from localStorage:", error)
-      }
+    if (!response.ok) {
+      return null
     }
+
+    const data = await response.json()
+    return (data.user ?? null) as User | null
+  } catch (error) {
+    console.error("Error loading subway session:", error)
+    return null
   }
-  return null
 }
 
-export function clearUserFromLocalStorage() {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("subway_user")
+export async function logoutCurrentSession() {
+  try {
+    await fetch("/api/session", {
+      method: "DELETE",
+    })
+  } catch (error) {
+    console.error("Error clearing subway session:", error)
   }
 }
-
